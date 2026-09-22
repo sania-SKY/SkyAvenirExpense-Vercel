@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 
 import {
@@ -13,14 +14,26 @@ import {
     View,
 } from 'react-native';
 
+import { signInWithMicrosoft } from '../../../services/auth';
+
 const backgroundImage = require('../../../assets/images/login-bg.png');
 
 export default function LoginScreen() {
   const [backgroundReady, setBackgroundReady] = useState(false);
 
-  const screenOpacity = useRef(new Animated.Value(0)).current;
+  const [isSigningIn, setIsSigningIn] = useState(false);
+
+  const [loginError, setLoginError] = useState('');
+
+  const screenOpacity = useRef(
+    new Animated.Value(0),
+  ).current;
 
   function handleBackgroundLoaded() {
+    if (backgroundReady) {
+      return;
+    }
+
     setBackgroundReady(true);
 
     Animated.timing(screenOpacity, {
@@ -28,6 +41,45 @@ export default function LoginScreen() {
       duration: 450,
       useNativeDriver: true,
     }).start();
+  }
+
+  async function handleMicrosoftSignIn() {
+    if (isSigningIn) {
+      return;
+    }
+
+    try {
+      setIsSigningIn(true);
+
+      setLoginError('');
+
+      const user = await signInWithMicrosoft();
+
+      console.log(
+        'Authenticated employee:',
+        user,
+      );
+
+      router.replace({
+        pathname: '/(tabs)/home',
+
+        params: {
+          name: user.name,
+          email: user.email,
+        },
+      });
+    } catch (error) {
+      console.error(
+        'Microsoft sign-in error:',
+        error,
+      );
+
+      setLoginError(
+        'Unable to sign in. Please check your connection and try again.',
+      );
+    } finally {
+      setIsSigningIn(false);
+    }
   }
 
   return (
@@ -56,6 +108,8 @@ export default function LoginScreen() {
             ]}
           >
             <View style={styles.content}>
+              {/* Sky Avenir branding */}
+
               <View style={styles.brandSection}>
                 <View style={styles.logoWrap}>
                   <Ionicons
@@ -66,8 +120,13 @@ export default function LoginScreen() {
                 </View>
 
                 <View style={styles.brandRow}>
-                  <Text style={styles.skyText}>SKY</Text>
-                  <Text style={styles.avenirText}>AVENIR</Text>
+                  <Text style={styles.skyText}>
+                    SKY
+                  </Text>
+
+                  <Text style={styles.avenirText}>
+                    AVENIR
+                  </Text>
                 </View>
 
                 <Text style={styles.expenseText}>
@@ -77,52 +136,112 @@ export default function LoginScreen() {
                 <View style={styles.goldLine} />
               </View>
 
+              {/* Welcome */}
+
               <View style={styles.welcomeSection}>
                 <Text style={styles.welcome}>
                   Welcome
                 </Text>
 
                 <Text style={styles.subtitle}>
-                  Sign in with your company account{'\n'}
+                  Sign in with your company account
+                  {'\n'}
                   to continue
                 </Text>
               </View>
 
+              {/* Microsoft Sign In */}
+
               <Pressable
+                onPress={handleMicrosoftSignIn}
+                disabled={isSigningIn}
                 style={({ pressed }) => [
                   styles.microsoftButton,
-                  pressed && styles.microsoftButtonPressed,
+
+                  pressed &&
+                    !isSigningIn &&
+                    styles.microsoftButtonPressed,
+
+                  isSigningIn &&
+                    styles.microsoftButtonDisabled,
                 ]}
               >
                 <LinearGradient
-                  colors={['#075EAA', '#0879CA']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
+                  colors={[
+                    '#075EAA',
+                    '#0879CA',
+                  ]}
+                  start={{
+                    x: 0,
+                    y: 0,
+                  }}
+                  end={{
+                    x: 1,
+                    y: 0,
+                  }}
                   style={styles.microsoftGradient}
                 >
                   <View style={styles.microsoftLogo}>
                     <View style={styles.msRow}>
-                      <View style={[styles.msSquare, styles.red]} />
-                      <View style={[styles.msSquare, styles.green]} />
+                      <View
+                        style={[
+                          styles.msSquare,
+                          styles.red,
+                        ]}
+                      />
+
+                      <View
+                        style={[
+                          styles.msSquare,
+                          styles.green,
+                        ]}
+                      />
                     </View>
 
                     <View style={styles.msRow}>
-                      <View style={[styles.msSquare, styles.blue]} />
-                      <View style={[styles.msSquare, styles.yellow]} />
+                      <View
+                        style={[
+                          styles.msSquare,
+                          styles.blue,
+                        ]}
+                      />
+
+                      <View
+                        style={[
+                          styles.msSquare,
+                          styles.yellow,
+                        ]}
+                      />
                     </View>
                   </View>
 
-                  <Text style={styles.microsoftText}>
-                    Sign in with Microsoft
+                  <Text
+                    style={styles.microsoftText}
+                  >
+                    {isSigningIn
+                      ? 'Signing in...'
+                      : 'Sign in with Microsoft'}
                   </Text>
 
-                  <Ionicons
-                    name="arrow-forward"
-                    size={23}
-                    color="#FFFFFF"
-                  />
+                  {!isSigningIn && (
+                    <Ionicons
+                      name="arrow-forward"
+                      size={23}
+                      color="#FFFFFF"
+                    />
+                  )}
                 </LinearGradient>
               </Pressable>
+
+              {/* Login error */}
+
+              {loginError ? (
+                <Text style={styles.loginError}>
+                  {loginError}
+                </Text>
+              ) : null}
+
+              {/* Benefits */}
 
               <View style={styles.features}>
                 <FeatureItem
@@ -144,6 +263,8 @@ export default function LoginScreen() {
                 />
               </View>
             </View>
+
+            {/* Footer */}
 
             <View style={styles.footer}>
               <Text style={styles.footerText}>
@@ -203,7 +324,9 @@ const styles = StyleSheet.create({
 
   softOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(255,255,255,0.44)',
+
+    backgroundColor:
+      'rgba(255,255,255,0.44)',
   },
 
   screen: {
@@ -212,6 +335,7 @@ const styles = StyleSheet.create({
 
   content: {
     flex: 1,
+
     paddingHorizontal: 24,
     paddingTop: 72,
   },
@@ -222,8 +346,10 @@ const styles = StyleSheet.create({
 
   logoWrap: {
     height: 58,
+
     alignItems: 'center',
     justifyContent: 'center',
+
     marginBottom: 6,
   },
 
@@ -234,83 +360,134 @@ const styles = StyleSheet.create({
 
   skyText: {
     fontSize: 31,
+
     fontWeight: '300',
+
     letterSpacing: 3.2,
+
     color: '#73A9CF',
+
     marginRight: 9,
   },
 
   avenirText: {
     fontSize: 31,
+
     fontWeight: '700',
+
     letterSpacing: 1.8,
+
     color: '#062E56',
   },
 
   expenseText: {
     marginTop: 4,
+
     fontSize: 10,
+
     letterSpacing: 7,
+
     color: '#7189A0',
   },
 
   goldLine: {
     width: 50,
     height: 2,
+
     marginTop: 17,
+
     borderRadius: 20,
+
     backgroundColor: '#DDA83C',
   },
 
   welcomeSection: {
     alignItems: 'center',
+
     marginTop: 27,
   },
 
   welcome: {
     fontSize: 34,
+
     lineHeight: 40,
+
     fontWeight: '700',
+
     color: '#062E56',
   },
 
   subtitle: {
     marginTop: 9,
+
     fontSize: 15.5,
+
     lineHeight: 22,
+
     textAlign: 'center',
+
     color: '#405F7C',
   },
 
   microsoftButton: {
     marginTop: 26,
+
     borderRadius: 14,
+
     overflow: 'hidden',
+
     elevation: 5,
+
+    shadowColor: '#075EAA',
+
+    shadowOpacity: 0.18,
+
+    shadowRadius: 12,
+
+    shadowOffset: {
+      width: 0,
+      height: 6,
+    },
   },
 
   microsoftButtonPressed: {
     opacity: 0.94,
-    transform: [{ scale: 0.996 }],
+
+    transform: [
+      {
+        scale: 0.996,
+      },
+    ],
+  },
+
+  microsoftButtonDisabled: {
+    opacity: 0.72,
   },
 
   microsoftGradient: {
     height: 58,
+
     borderRadius: 14,
+
     flexDirection: 'row',
+
     alignItems: 'center',
+
     paddingHorizontal: 20,
   },
 
   microsoftLogo: {
     width: 26,
     height: 26,
+
     marginRight: 13,
+
     justifyContent: 'space-between',
   },
 
   msRow: {
     flexDirection: 'row',
+
     justifyContent: 'space-between',
   },
 
@@ -337,9 +514,26 @@ const styles = StyleSheet.create({
 
   microsoftText: {
     flex: 1,
+
     fontSize: 17,
+
     fontWeight: '600',
+
     color: '#FFFFFF',
+  },
+
+  loginError: {
+    marginTop: 11,
+
+    paddingHorizontal: 10,
+
+    fontSize: 13,
+
+    lineHeight: 18,
+
+    textAlign: 'center',
+
+    color: '#B42318',
   },
 
   features: {
@@ -348,17 +542,25 @@ const styles = StyleSheet.create({
 
   featureRow: {
     flexDirection: 'row',
+
     alignItems: 'center',
+
     marginBottom: 21,
   },
 
   featureIcon: {
     width: 53,
     height: 53,
+
     borderRadius: 27,
-    backgroundColor: 'rgba(220,236,248,0.92)',
+
+    backgroundColor:
+      'rgba(220,236,248,0.92)',
+
     alignItems: 'center',
+
     justifyContent: 'center',
+
     marginRight: 15,
   },
 
@@ -368,29 +570,40 @@ const styles = StyleSheet.create({
 
   featureTitle: {
     fontSize: 16,
+
     fontWeight: '700',
+
     color: '#082F56',
   },
 
   featureSubtitle: {
     marginTop: 3,
+
     fontSize: 13.5,
+
     lineHeight: 18,
+
     color: '#4B6A88',
   },
 
   footer: {
     position: 'absolute',
+
     bottom: 26,
+
     left: 20,
     right: 20,
+
     alignItems: 'center',
   },
 
   footerText: {
     fontSize: 8.5,
+
     letterSpacing: 2,
+
     color: '#173F66',
+
     fontWeight: '500',
   },
 });
