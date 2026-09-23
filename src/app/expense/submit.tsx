@@ -61,15 +61,11 @@ export default function SubmitExpenseScreen() {
   function selectOption(
     value: string,
   ) {
-    if (
-      selectorType === 'category'
-    ) {
+    if (selectorType === 'category') {
       setCategory(value);
     }
 
-    if (
-      selectorType === 'purpose'
-    ) {
+    if (selectorType === 'purpose') {
       setBusinessPurpose(value);
     }
 
@@ -205,7 +201,7 @@ export default function SubmitExpenseScreen() {
         (resolve) =>
           setTimeout(
             resolve,
-            700,
+            650,
           ),
       );
 
@@ -230,20 +226,24 @@ export default function SubmitExpenseScreen() {
   if (!receipt) {
     return (
       <View style={styles.emptyScreen}>
-        <Ionicons
-          name="receipt-outline"
-          size={52}
-          color="#8EA4B5"
-        />
+        <View style={styles.emptyIcon}>
+          <Ionicons
+            name="receipt-outline"
+            size={34}
+            color="#0A67A7"
+          />
+        </View>
 
         <Text style={styles.emptyTitle}>
           Receipt unavailable
         </Text>
 
+        <Text style={styles.emptySubtitle}>
+          Capture or upload a receipt to continue.
+        </Text>
+
         <Pressable
-          style={
-            styles.captureAgainButton
-          }
+          style={styles.captureAgainButton}
           onPress={() =>
             router.replace(
               '/expense/capture',
@@ -271,7 +271,12 @@ export default function SubmitExpenseScreen() {
           : undefined
       }
     >
-      <StatusBar style="dark" />
+      <StatusBar
+        style="dark"
+        backgroundColor="#FFFFFF"
+      />
+
+      {/* HEADER */}
 
       <View style={styles.header}>
         <Pressable
@@ -282,289 +287,297 @@ export default function SubmitExpenseScreen() {
         >
           <Ionicons
             name="chevron-back"
-            size={25}
-            color="#082F56"
+            size={24}
+            color="#0A3558"
           />
         </Pressable>
 
-        <Text style={styles.headerTitle}>
-          Expense Details
-        </Text>
+        <View style={styles.headerText}>
+          <Text style={styles.headerTitle}>
+            Expense Details
+          </Text>
 
-        <View
-          style={styles.headerSpacer}
-        />
+          <Text style={styles.headerSubtitle}>
+            Review before submitting
+          </Text>
+        </View>
+
+        <View style={styles.headerSpacer} />
       </View>
 
       <ScrollView
-        showsVerticalScrollIndicator={
-          false
-        }
+        showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={
           styles.scrollContent
         }
       >
-        <View
-          style={
-            styles.receiptContainer
-          }
-        >
-          <View
-            style={
-              styles.receiptPreview
-            }
-          >
+        {/* RECEIPT CARD */}
+
+        <View style={styles.receiptCard}>
+          <View style={styles.receiptImageWrap}>
             <Image
               source={{
                 uri: receipt.uri,
               }}
-              style={
-                styles.receiptImage
-              }
+              style={styles.receiptImage}
               resizeMode="contain"
             />
           </View>
 
-          <Pressable
-            onPress={() =>
-              router.back()
-            }
-            style={
-              styles.editReceiptButton
-            }
-          >
-            <Ionicons
-              name="create-outline"
-              size={17}
-              color="#075A98"
-            />
+          <View style={styles.receiptMeta}>
+            <View>
+              <Text style={styles.receiptLabel}>
+                Receipt attached
+              </Text>
 
-            <Text
-              style={
-                styles.editReceiptText
-              }
-            >
-              Edit Receipt
-            </Text>
-          </Pressable>
-        </View>
-
-        <FieldLabel
-          label="Category"
-          required
-        />
-
-        <Selector
-          icon="grid-outline"
-          value={category}
-          placeholder="Select category"
-          onPress={() =>
-            setSelectorType(
-              'category',
-            )
-          }
-        />
-
-        <FieldLabel
-          label="Business Purpose"
-          required
-        />
-
-        <Selector
-          icon="briefcase-outline"
-          value={businessPurpose}
-          placeholder="Select business purpose"
-          onPress={() =>
-            setSelectorType(
-              'purpose',
-            )
-          }
-        />
-
-        {requiresAttendees && (
-          <View>
-            <View
-              style={
-                styles.attendeeHeadingRow
-              }
-            >
-              <FieldLabel
-                label="Attendees"
-                required
-              />
-
-              <Text
-                style={
-                  styles.attendeeHint
-                }
-              >
-                Required for this expense type
+              <Text style={styles.receiptHint}>
+                Ready for expense details
               </Text>
             </View>
 
-            {attendees.map(
-              (
-                attendee,
-                index,
-              ) => (
-                <View
-                  key={index}
-                  style={
-                    styles.attendeeRow
-                  }
-                >
-                  <View
-                    style={
-                      styles.attendeeInputContainer
-                    }
-                  >
-                    <Ionicons
-                      name="person-outline"
-                      size={19}
-                      color="#668095"
-                    />
-
-                    <TextInput
-                      value={
-                        attendee
-                      }
-                      onChangeText={(
-                        value,
-                      ) =>
-                        updateAttendee(
-                          index,
-                          value,
-                        )
-                      }
-                      placeholder="Attendee name"
-                      placeholderTextColor="#8AA0B1"
-                      style={
-                        styles.attendeeInput
-                      }
-                    />
-                  </View>
-
-                  {attendees.length >
-                    1 && (
-                    <Pressable
-                      onPress={() =>
-                        removeAttendee(
-                          index,
-                        )
-                      }
-                      style={
-                        styles.removeAttendee
-                      }
-                    >
-                      <Ionicons
-                        name="close"
-                        size={19}
-                        color="#B42318"
-                      />
-                    </Pressable>
-                  )}
-                </View>
-              ),
-            )}
-
             <Pressable
-              onPress={addAttendee}
+              onPress={() =>
+                router.back()
+              }
               style={
-                styles.addAttendeeButton
+                styles.editReceiptButton
               }
             >
               <Ionicons
-                name="add-circle-outline"
-                size={20}
+                name="create-outline"
+                size={16}
                 color="#075A98"
               />
 
               <Text
                 style={
-                  styles.addAttendeeText
+                  styles.editReceiptText
                 }
               >
-                Add another attendee
+                Edit
               </Text>
             </Pressable>
           </View>
-        )}
+        </View>
 
-        <FieldLabel
-          label="Comments"
-        />
+        {/* DETAILS CARD */}
 
-        <View
-          style={
-            styles.commentsContainer
-          }
-        >
-          <TextInput
-            value={comments}
-            onChangeText={
-              setComments
-            }
-            multiline
-            maxLength={500}
-            placeholder="Add any additional details..."
-            placeholderTextColor="#8AA0B1"
-            style={
-              styles.commentsInput
+        <View style={styles.formCard}>
+          <Text style={styles.sectionEyebrow}>
+            EXPENSE INFORMATION
+          </Text>
+
+          <FieldLabel
+            label="Category"
+            required
+          />
+
+          <Selector
+            icon="grid-outline"
+            value={category}
+            placeholder="Select category"
+            onPress={() =>
+              setSelectorType(
+                'category',
+              )
             }
           />
 
-          <Text
+          <FieldLabel
+            label="Business Purpose"
+            required
+          />
+
+          <Selector
+            icon="briefcase-outline"
+            value={businessPurpose}
+            placeholder="Select business purpose"
+            onPress={() =>
+              setSelectorType(
+                'purpose',
+              )
+            }
+          />
+
+          {requiresAttendees && (
+            <View>
+              <View
+                style={
+                  styles.attendeeHeadingRow
+                }
+              >
+                <FieldLabel
+                  label="Attendees"
+                  required
+                />
+
+                <Text
+                  style={
+                    styles.attendeeHint
+                  }
+                >
+                  Required
+                </Text>
+              </View>
+
+              {attendees.map(
+                (
+                  attendee,
+                  index,
+                ) => (
+                  <View
+                    key={index}
+                    style={
+                      styles.attendeeRow
+                    }
+                  >
+                    <View
+                      style={
+                        styles.attendeeInputContainer
+                      }
+                    >
+                      <Ionicons
+                        name="person-outline"
+                        size={18}
+                        color="#698297"
+                      />
+
+                      <TextInput
+                        value={
+                          attendee
+                        }
+                        onChangeText={(
+                          value,
+                        ) =>
+                          updateAttendee(
+                            index,
+                            value,
+                          )
+                        }
+                        placeholder="Attendee name"
+                        placeholderTextColor="#91A3B1"
+                        style={
+                          styles.attendeeInput
+                        }
+                      />
+                    </View>
+
+                    {attendees.length >
+                      1 && (
+                      <Pressable
+                        onPress={() =>
+                          removeAttendee(
+                            index,
+                          )
+                        }
+                        style={
+                          styles.removeAttendee
+                        }
+                      >
+                        <Ionicons
+                          name="close"
+                          size={19}
+                          color="#B23B34"
+                        />
+                      </Pressable>
+                    )}
+                  </View>
+                ),
+              )}
+
+              <Pressable
+                onPress={addAttendee}
+                style={
+                  styles.addAttendeeButton
+                }
+              >
+                <Ionicons
+                  name="add-circle-outline"
+                  size={19}
+                  color="#0868AE"
+                />
+
+                <Text
+                  style={
+                    styles.addAttendeeText
+                  }
+                >
+                  Add another attendee
+                </Text>
+              </Pressable>
+            </View>
+          )}
+
+          <FieldLabel
+            label="Comments"
+          />
+
+          <View
             style={
-              styles.characterCount
+              styles.commentsContainer
             }
           >
-            {comments.length}/500
+            <TextInput
+              value={comments}
+              onChangeText={
+                setComments
+              }
+              multiline
+              maxLength={500}
+              placeholder="Add any useful details..."
+              placeholderTextColor="#91A3B1"
+              style={
+                styles.commentsInput
+              }
+            />
+
+            <Text
+              style={
+                styles.characterCount
+              }
+            >
+              {comments.length}/500
+            </Text>
+          </View>
+
+          <Text
+            style={
+              styles.commentsHelp
+            }
+          >
+            Optional — only add information that helps explain the expense.
           </Text>
         </View>
 
-        <Text
-          style={
-            styles.commentsHelp
-          }
-        >
-          Optional — add details only when useful.
-        </Text>
+        {/* REVIEW CARD */}
 
-        <View style={styles.summaryCard}>
-          <View
-            style={
-              styles.summaryIcon
-            }
-          >
+        <View style={styles.reviewCard}>
+          <View style={styles.reviewIcon}>
             <Ionicons
               name="shield-checkmark-outline"
-              size={21}
-              color="#075A98"
+              size={22}
+              color="#0868AE"
             />
           </View>
 
-          <View style={styles.summaryText}>
-            <Text
-              style={
-                styles.summaryTitle
-              }
-            >
-              Ready when you are
+          <View style={styles.reviewText}>
+            <Text style={styles.reviewTitle}>
+              Ready to submit
             </Text>
 
             <Text
               style={
-                styles.summaryDescription
+                styles.reviewDescription
               }
             >
-              Review the receipt and
-              expense details before
-              submitting.
+              Your receipt and details will be validated before they are stored.
             </Text>
           </View>
         </View>
       </ScrollView>
+
+      {/* BOTTOM ACTION */}
 
       <View style={styles.bottomBar}>
         <Pressable
@@ -596,6 +609,8 @@ export default function SubmitExpenseScreen() {
           )}
         </Pressable>
       </View>
+
+      {/* SELECTOR */}
 
       <Modal
         visible={
@@ -691,9 +706,7 @@ export default function SubmitExpenseScreen() {
 
                   return (
                     <Pressable
-                      key={
-                        option
-                      }
+                      key={option}
                       onPress={() =>
                         selectOption(
                           option,
@@ -721,7 +734,7 @@ export default function SubmitExpenseScreen() {
                         <Ionicons
                           name="checkmark-circle"
                           size={21}
-                          color="#0870B8"
+                          color="#0868AE"
                         />
                       )}
                     </Pressable>
@@ -750,9 +763,7 @@ function FieldLabel({
       {label}
 
       {required && (
-        <Text
-          style={styles.required}
-        >
+        <Text style={styles.required}>
           {' '}*
         </Text>
       )}
@@ -763,11 +774,8 @@ function FieldLabel({
 type SelectorProps = {
   icon:
     keyof typeof Ionicons.glyphMap;
-
   value: string;
-
   placeholder: string;
-
   onPress: () => void;
 };
 
@@ -787,19 +795,16 @@ function Selector({
           styles.selectorPressed,
       ]}
     >
-      <View
-        style={
-          styles.selectorIcon
-        }
-      >
+      <View style={styles.selectorIcon}>
         <Ionicons
           name={icon}
           size={20}
-          color="#075A98"
+          color="#0868AE"
         />
       </View>
 
       <Text
+        numberOfLines={1}
         style={[
           styles.selectorText,
 
@@ -812,543 +817,598 @@ function Selector({
 
       <Ionicons
         name="chevron-down"
-        size={20}
-        color="#58758B"
+        size={19}
+        color="#637C8F"
       />
     </Pressable>
   );
 }
 
-const styles =
-  StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: '#F5F9FC',
-    },
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F4F8FB',
+  },
 
-    header: {
-      paddingTop: 50,
-      paddingHorizontal: 18,
-      paddingBottom: 15,
+  header: {
+    paddingTop: 50,
+    paddingHorizontal: 18,
+    paddingBottom: 15,
 
-      flexDirection: 'row',
-      alignItems: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
 
-      backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E8EEF3',
 
-      borderBottomWidth: 1,
-      borderBottomColor: '#E5EDF3',
-    },
+    backgroundColor: '#FFFFFF',
+  },
 
-    headerButton: {
-      width: 44,
-      height: 44,
+  headerButton: {
+    width: 44,
+    height: 44,
 
-      borderRadius: 22,
+    borderRadius: 22,
 
-      alignItems: 'center',
-      justifyContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
 
-      backgroundColor: '#EFF5F9',
-    },
+    backgroundColor: '#EFF5F9',
+  },
 
-    headerTitle: {
-      flex: 1,
+  headerText: {
+    flex: 1,
+    alignItems: 'center',
+  },
 
-      textAlign: 'center',
+  headerTitle: {
+    fontSize: 18.5,
+    fontWeight: '700',
+    color: '#0A3558',
+  },
 
-      fontSize: 18,
-      fontWeight: '700',
+  headerSubtitle: {
+    marginTop: 2,
+    fontSize: 10.5,
+    color: '#8498A8',
+  },
 
-      color: '#082F56',
-    },
+  headerSpacer: {
+    width: 44,
+  },
 
-    headerSpacer: {
-      width: 44,
-    },
+  scrollContent: {
+    paddingHorizontal: 18,
+    paddingTop: 18,
+    paddingBottom: 125,
+  },
 
-    scrollContent: {
-      paddingHorizontal: 20,
-      paddingTop: 20,
-      paddingBottom: 125,
-    },
+  receiptCard: {
+    padding: 14,
 
-    receiptContainer: {
-      alignItems: 'center',
+    borderRadius: 22,
 
-      marginBottom: 18,
-    },
+    backgroundColor: '#FFFFFF',
 
-    receiptPreview: {
-      width: 170,
-      height: 205,
+    elevation: 2,
+  },
 
-      overflow: 'hidden',
+  receiptImageWrap: {
+    height: 230,
 
-      borderRadius: 20,
+    overflow: 'hidden',
 
-      backgroundColor: '#E5EDF3',
+    borderRadius: 17,
 
-      elevation: 4,
-    },
+    backgroundColor: '#EDF3F7',
+  },
 
-    receiptImage: {
-      width: '100%',
-      height: '100%',
-    },
+  receiptImage: {
+    width: '100%',
+    height: '100%',
+  },
 
-    editReceiptButton: {
-      marginTop: 12,
+  receiptMeta: {
+    marginTop: 13,
 
-      flexDirection: 'row',
-      alignItems: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
 
-      gap: 6,
+  receiptLabel: {
+    fontSize: 13.5,
+    fontWeight: '700',
+    color: '#173F60',
+  },
 
-      paddingVertical: 8,
-      paddingHorizontal: 14,
+  receiptHint: {
+    marginTop: 2,
+    fontSize: 10.5,
+    color: '#899CAB',
+  },
 
-      borderRadius: 20,
+  editReceiptButton: {
+    paddingHorizontal: 13,
+    paddingVertical: 8,
 
-      backgroundColor: '#E5F1F9',
-    },
+    flexDirection: 'row',
+    alignItems: 'center',
 
-    editReceiptText: {
-      fontSize: 12.5,
-      fontWeight: '700',
+    gap: 5,
 
-      color: '#075A98',
-    },
+    borderRadius: 16,
 
-    fieldLabel: {
-      marginTop: 18,
-      marginBottom: 8,
+    backgroundColor: '#E7F2FA',
+  },
 
-      fontSize: 14,
-      fontWeight: '700',
+  editReceiptText: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    color: '#075A98',
+  },
 
-      color: '#173D5D',
-    },
+  formCard: {
+    marginTop: 16,
 
-    required: {
-      color: '#C63A34',
-    },
+    padding: 17,
 
-    selector: {
-      height: 58,
+    borderRadius: 22,
 
-      paddingHorizontal: 13,
+    backgroundColor: '#FFFFFF',
+  },
 
-      flexDirection: 'row',
-      alignItems: 'center',
+  sectionEyebrow: {
+    marginBottom: 5,
 
-      borderRadius: 16,
+    fontSize: 8.5,
+    fontWeight: '700',
 
-      borderWidth: 1,
-      borderColor: '#D2E0EA',
+    letterSpacing: 2,
 
-      backgroundColor: '#FFFFFF',
-    },
+    color: '#8BA0B0',
+  },
 
-    selectorPressed: {
-      backgroundColor: '#F8FBFD',
-    },
+  fieldLabel: {
+    marginTop: 17,
+    marginBottom: 8,
 
-    selectorIcon: {
-      width: 38,
-      height: 38,
+    fontSize: 13.5,
+    fontWeight: '700',
+    color: '#173F60',
+  },
 
-      marginRight: 10,
+  required: {
+    color: '#C53A35',
+  },
 
-      borderRadius: 12,
+  selector: {
+    height: 58,
 
-      alignItems: 'center',
-      justifyContent: 'center',
+    paddingHorizontal: 12,
 
-      backgroundColor: '#E8F3FA',
-    },
+    flexDirection: 'row',
+    alignItems: 'center',
 
-    selectorText: {
-      flex: 1,
+    borderWidth: 1,
+    borderColor: '#D4E2EB',
 
-      fontSize: 14,
-      fontWeight: '600',
+    borderRadius: 16,
 
-      color: '#173D5D',
-    },
+    backgroundColor: '#FBFDFE',
+  },
 
-    selectorPlaceholder: {
-      fontWeight: '400',
+  selectorPressed: {
+    backgroundColor: '#F5F9FC',
+  },
 
-      color: '#8297A8',
-    },
+  selectorIcon: {
+    width: 38,
+    height: 38,
 
-    attendeeHeadingRow: {
-      flexDirection: 'row',
-      alignItems: 'flex-end',
-      justifyContent:
-        'space-between',
-    },
+    marginRight: 10,
 
-    attendeeHint: {
-      marginBottom: 8,
+    borderRadius: 12,
 
-      fontSize: 10.5,
+    alignItems: 'center',
+    justifyContent: 'center',
 
-      color: '#8498A7',
-    },
+    backgroundColor: '#E7F2FA',
+  },
 
-    attendeeRow: {
-      flexDirection: 'row',
+  selectorText: {
+    flex: 1,
 
-      gap: 9,
+    fontSize: 13.5,
+    fontWeight: '600',
 
-      marginBottom: 10,
-    },
+    color: '#173F60',
+  },
 
-    attendeeInputContainer: {
-      flex: 1,
+  selectorPlaceholder: {
+    fontWeight: '400',
+    color: '#8CA0AF',
+  },
 
-      height: 55,
+  attendeeHeadingRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+  },
 
-      paddingHorizontal: 14,
+  attendeeHint: {
+    marginBottom: 8,
 
-      flexDirection: 'row',
-      alignItems: 'center',
+    fontSize: 10.5,
+    fontWeight: '600',
 
-      gap: 9,
+    color: '#B23B34',
+  },
 
-      borderRadius: 15,
+  attendeeRow: {
+    flexDirection: 'row',
 
-      borderWidth: 1,
-      borderColor: '#D2E0EA',
+    gap: 8,
 
-      backgroundColor: '#FFFFFF',
-    },
+    marginBottom: 9,
+  },
 
-    attendeeInput: {
-      flex: 1,
+  attendeeInputContainer: {
+    flex: 1,
+    height: 54,
 
-      fontSize: 14,
+    paddingHorizontal: 13,
 
-      color: '#173D5D',
-    },
+    flexDirection: 'row',
+    alignItems: 'center',
 
-    removeAttendee: {
-      width: 46,
-      height: 55,
+    gap: 8,
 
-      borderRadius: 15,
+    borderWidth: 1,
+    borderColor: '#D4E2EB',
 
-      alignItems: 'center',
-      justifyContent: 'center',
+    borderRadius: 15,
 
-      backgroundColor: '#FFF1F0',
-    },
+    backgroundColor: '#FBFDFE',
+  },
 
-    addAttendeeButton: {
-      alignSelf: 'flex-start',
+  attendeeInput: {
+    flex: 1,
 
-      flexDirection: 'row',
-      alignItems: 'center',
+    fontSize: 13.5,
+    color: '#173F60',
+  },
 
-      gap: 7,
+  removeAttendee: {
+    width: 45,
+    height: 54,
 
-      marginTop: 3,
+    borderRadius: 15,
 
-      paddingVertical: 8,
-    },
+    alignItems: 'center',
+    justifyContent: 'center',
 
-    addAttendeeText: {
-      fontSize: 13,
-      fontWeight: '700',
+    backgroundColor: '#FDECEA',
+  },
 
-      color: '#075A98',
-    },
+  addAttendeeButton: {
+    alignSelf: 'flex-start',
 
-    commentsContainer: {
-      minHeight: 115,
+    marginTop: 1,
 
-      paddingHorizontal: 14,
-      paddingTop: 12,
-      paddingBottom: 8,
+    paddingVertical: 8,
 
-      borderWidth: 1,
-      borderColor: '#D2E0EA',
+    flexDirection: 'row',
+    alignItems: 'center',
 
-      borderRadius: 16,
+    gap: 6,
+  },
 
-      backgroundColor: '#FFFFFF',
-    },
+  addAttendeeText: {
+    fontSize: 12,
+    fontWeight: '700',
 
-    commentsInput: {
-      minHeight: 70,
+    color: '#0868AE',
+  },
 
-      fontSize: 14,
-      lineHeight: 20,
+  commentsContainer: {
+    minHeight: 108,
 
-      color: '#173D5D',
+    paddingHorizontal: 13,
+    paddingTop: 11,
+    paddingBottom: 8,
 
-      textAlignVertical: 'top',
-    },
+    borderWidth: 1,
+    borderColor: '#D4E2EB',
 
-    characterCount: {
-      textAlign: 'right',
+    borderRadius: 16,
 
-      fontSize: 10.5,
+    backgroundColor: '#FBFDFE',
+  },
 
-      color: '#92A5B4',
-    },
+  commentsInput: {
+    minHeight: 66,
 
-    commentsHelp: {
-      marginTop: 7,
+    fontSize: 13.5,
+    lineHeight: 19,
 
-      fontSize: 11,
+    color: '#173F60',
 
-      color: '#8397A6',
-    },
+    textAlignVertical: 'top',
+  },
 
-    summaryCard: {
-      marginTop: 25,
+  characterCount: {
+    textAlign: 'right',
 
-      padding: 15,
+    fontSize: 9.5,
 
-      flexDirection: 'row',
+    color: '#9AADBA',
+  },
 
-      gap: 12,
+  commentsHelp: {
+    marginTop: 7,
 
-      borderRadius: 18,
+    fontSize: 10.5,
+    lineHeight: 15,
 
-      backgroundColor: '#EAF4FA',
-    },
+    color: '#879CAA',
+  },
 
-    summaryIcon: {
-      width: 40,
-      height: 40,
+  reviewCard: {
+    marginTop: 16,
 
-      borderRadius: 13,
+    padding: 15,
 
-      alignItems: 'center',
-      justifyContent: 'center',
+    flexDirection: 'row',
 
-      backgroundColor: '#D9EBF7',
-    },
+    gap: 11,
 
-    summaryText: {
-      flex: 1,
-    },
+    borderRadius: 19,
 
-    summaryTitle: {
-      fontSize: 13.5,
-      fontWeight: '700',
+    backgroundColor: '#E8F3FA',
+  },
 
-      color: '#174966',
-    },
+  reviewIcon: {
+    width: 42,
+    height: 42,
 
-    summaryDescription: {
-      marginTop: 3,
+    borderRadius: 13,
 
-      fontSize: 11.5,
-      lineHeight: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
 
-      color: '#5A788C',
-    },
+    backgroundColor: '#D8EBF6',
+  },
 
-    bottomBar: {
-      position: 'absolute',
+  reviewText: {
+    flex: 1,
+  },
 
-      bottom: 0,
-      left: 0,
-      right: 0,
+  reviewTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#174966',
+  },
 
-      paddingHorizontal: 20,
-      paddingTop: 13,
-      paddingBottom: 27,
+  reviewDescription: {
+    marginTop: 3,
 
-      backgroundColor: '#FFFFFF',
+    fontSize: 10.5,
+    lineHeight: 15,
 
-      borderTopWidth: 1,
-      borderTopColor: '#E5EDF3',
-    },
+    color: '#5E7A8D',
+  },
 
-    submitButton: {
-      height: 58,
+  bottomBar: {
+    position: 'absolute',
 
-      flexDirection: 'row',
+    left: 0,
+    right: 0,
+    bottom: 0,
 
-      gap: 8,
+    paddingHorizontal: 18,
+    paddingTop: 12,
+    paddingBottom: 26,
 
-      alignItems: 'center',
-      justifyContent: 'center',
+    borderTopWidth: 1,
+    borderTopColor: '#E8EEF3',
 
-      borderRadius: 16,
+    backgroundColor: '#FFFFFF',
+  },
 
-      backgroundColor: '#0868AE',
-    },
+  submitButton: {
+    height: 58,
 
-    submitDisabled: {
-      opacity: 0.6,
-    },
+    borderRadius: 17,
 
-    submitButtonText: {
-      fontSize: 16,
-      fontWeight: '700',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
 
-      color: '#FFFFFF',
-    },
+    gap: 8,
 
-    modalBackdrop: {
-      flex: 1,
+    backgroundColor: '#0868AE',
+  },
 
-      justifyContent: 'flex-end',
+  submitDisabled: {
+    opacity: 0.65,
+  },
 
-      backgroundColor:
-        'rgba(5, 26, 43, 0.40)',
-    },
+  submitButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
 
-    selectorSheet: {
-      maxHeight: '72%',
+  modalBackdrop: {
+    flex: 1,
 
-      paddingHorizontal: 20,
-      paddingTop: 10,
-      paddingBottom: 30,
+    justifyContent: 'flex-end',
 
-      borderTopLeftRadius: 28,
-      borderTopRightRadius: 28,
+    backgroundColor:
+      'rgba(5,26,43,0.42)',
+  },
 
-      backgroundColor: '#FFFFFF',
-    },
+  selectorSheet: {
+    maxHeight: '72%',
 
-    sheetHandle: {
-      width: 42,
-      height: 4,
+    paddingHorizontal: 18,
+    paddingTop: 10,
+    paddingBottom: 28,
 
-      alignSelf: 'center',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
 
-      marginBottom: 19,
+    backgroundColor: '#FFFFFF',
+  },
 
-      borderRadius: 5,
+  sheetHandle: {
+    width: 42,
+    height: 4,
 
-      backgroundColor: '#D4E0E8',
-    },
+    alignSelf: 'center',
 
-    sheetHeader: {
-      flexDirection: 'row',
+    marginBottom: 18,
 
-      alignItems: 'center',
-      justifyContent:
-        'space-between',
+    borderRadius: 4,
 
-      marginBottom: 15,
-    },
+    backgroundColor: '#D4E0E8',
+  },
 
-    sheetTitle: {
-      fontSize: 20,
-      fontWeight: '700',
+  sheetHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
 
-      color: '#082F56',
-    },
+    marginBottom: 14,
+  },
 
-    sheetSubtitle: {
-      marginTop: 3,
+  sheetTitle: {
+    fontSize: 19,
+    fontWeight: '700',
+    color: '#0A3558',
+  },
 
-      fontSize: 12,
+  sheetSubtitle: {
+    marginTop: 3,
 
-      color: '#8196A6',
-    },
+    fontSize: 11,
+    color: '#8498A8',
+  },
 
-    closeSheetButton: {
-      width: 40,
-      height: 40,
+  closeSheetButton: {
+    width: 40,
+    height: 40,
 
-      borderRadius: 20,
+    borderRadius: 20,
 
-      alignItems: 'center',
-      justifyContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
 
-      backgroundColor: '#EFF5F9',
-    },
+    backgroundColor: '#EFF5F9',
+  },
 
-    optionsList: {
-      maxHeight: 430,
-    },
+  optionsList: {
+    maxHeight: 430,
+  },
 
-    optionRow: {
-      minHeight: 54,
+  optionRow: {
+    minHeight: 52,
 
-      paddingHorizontal: 15,
+    paddingHorizontal: 14,
 
-      flexDirection: 'row',
+    marginBottom: 6,
 
-      alignItems: 'center',
-      justifyContent:
-        'space-between',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
 
-      marginBottom: 7,
+    borderRadius: 14,
 
-      borderRadius: 14,
+    backgroundColor: '#F7FAFC',
+  },
 
-      backgroundColor: '#F7FAFC',
-    },
+  optionRowSelected: {
+    borderWidth: 1,
+    borderColor: '#8DC6E8',
 
-    optionRowSelected: {
-      borderWidth: 1,
-      borderColor: '#8DC6E8',
+    backgroundColor: '#E8F4FB',
+  },
 
-      backgroundColor: '#E8F4FB',
-    },
+  optionText: {
+    flex: 1,
 
-    optionText: {
-      fontSize: 14,
+    paddingRight: 10,
 
-      color: '#365A73',
-    },
+    fontSize: 13,
+    color: '#365A73',
+  },
 
-    optionTextSelected: {
-      fontWeight: '700',
+  optionTextSelected: {
+    fontWeight: '700',
+    color: '#075A98',
+  },
 
-      color: '#075A98',
-    },
+  emptyScreen: {
+    flex: 1,
 
-    emptyScreen: {
-      flex: 1,
+    paddingHorizontal: 30,
 
-      alignItems: 'center',
-      justifyContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
 
-      paddingHorizontal: 30,
+    backgroundColor: '#F4F8FB',
+  },
 
-      backgroundColor: '#F5F9FC',
-    },
+  emptyIcon: {
+    width: 72,
+    height: 72,
 
-    emptyTitle: {
-      marginTop: 13,
+    borderRadius: 24,
 
-      fontSize: 20,
-      fontWeight: '700',
+    alignItems: 'center',
+    justifyContent: 'center',
 
-      color: '#173D5D',
-    },
+    backgroundColor: '#E5F1F9',
+  },
 
-    captureAgainButton: {
-      marginTop: 22,
+  emptyTitle: {
+    marginTop: 16,
 
-      height: 52,
+    fontSize: 20,
+    fontWeight: '700',
 
-      paddingHorizontal: 24,
+    color: '#173F60',
+  },
 
-      borderRadius: 15,
+  emptySubtitle: {
+    marginTop: 6,
 
-      alignItems: 'center',
-      justifyContent: 'center',
+    textAlign: 'center',
 
-      backgroundColor: '#0868AE',
-    },
+    fontSize: 12.5,
 
-    captureAgainText: {
-      fontSize: 15,
-      fontWeight: '700',
+    color: '#8397A6',
+  },
 
-      color: '#FFFFFF',
-    },
-  });
+  captureAgainButton: {
+    marginTop: 22,
+
+    height: 52,
+
+    paddingHorizontal: 24,
+
+    borderRadius: 15,
+
+    alignItems: 'center',
+    justifyContent: 'center',
+
+    backgroundColor: '#0868AE',
+  },
+
+  captureAgainText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+});

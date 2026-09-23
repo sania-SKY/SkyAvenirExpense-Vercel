@@ -14,13 +14,13 @@ import { useReceipt } from '../../context/ReceiptContext';
 export default function ExpenseSuccessScreen() {
   const { clearReceipt } = useReceipt();
 
-  function goHome() {
+  function handleBackHome() {
     clearReceipt();
 
     router.replace('/(tabs)/home');
   }
 
-  function addAnother() {
+  function handleAnotherReceipt() {
     clearReceipt();
 
     router.replace('/expense/capture');
@@ -28,75 +28,127 @@ export default function ExpenseSuccessScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar style="dark" />
+      <StatusBar
+        style="dark"
+        backgroundColor="#F4F8FB"
+      />
 
-      <View style={styles.successIcon}>
-        <Ionicons
-          name="checkmark"
-          size={48}
-          color="#FFFFFF"
-        />
-      </View>
+      {/* SOFT BACKGROUND DETAILS */}
 
-      <Text style={styles.title}>
-        Expense Submitted
-      </Text>
+      <View style={styles.glowOne} />
+      <View style={styles.glowTwo} />
 
-      <Text style={styles.subtitle}>
-        Your receipt and expense details have
-        been submitted successfully.
-      </Text>
+      <View style={styles.content}>
+        {/* SUCCESS ICON */}
 
-      <View style={styles.statusCard}>
-        <View style={styles.statusIcon}>
+        <View style={styles.successOuter}>
+          <View style={styles.successInner}>
+            <Ionicons
+              name="checkmark"
+              size={46}
+              color="#FFFFFF"
+            />
+          </View>
+        </View>
+
+        {/* MAIN TEXT */}
+
+        <Text style={styles.title}>
+          Expense Submitted
+        </Text>
+
+        <Text style={styles.subtitle}>
+          Your receipt and expense details have
+          been submitted successfully.
+        </Text>
+
+        {/* STATUS CARD */}
+
+        <View style={styles.statusCard}>
+          <View style={styles.statusIcon}>
+            <Ionicons
+              name="time-outline"
+              size={23}
+              color="#0868AE"
+            />
+          </View>
+
+          <View style={styles.statusTextWrap}>
+            <Text style={styles.statusTitle}>
+              Processing
+            </Text>
+
+            <Text style={styles.statusDescription}>
+              Your expense is being prepared and
+              will appear in your expense history.
+            </Text>
+          </View>
+        </View>
+
+        {/* INFO CARD */}
+
+        <View style={styles.infoCard}>
           <Ionicons
-            name="time-outline"
-            size={22}
-            color="#075A98"
+            name="shield-checkmark-outline"
+            size={20}
+            color="#16845B"
           />
-        </View>
 
-        <View style={styles.statusText}>
-          <Text style={styles.statusTitle}>
-            Processing
-          </Text>
-
-          <Text style={styles.statusDescription}>
-            Your expense will appear in your
-            expense history.
+          <Text style={styles.infoText}>
+            Your submission has been saved locally for testing.
           </Text>
         </View>
+
+        {/* ACTIONS */}
+
+        <Pressable
+          onPress={handleBackHome}
+          style={({ pressed }) => [
+            styles.primaryButton,
+            pressed && styles.buttonPressed,
+          ]}
+        >
+          <Text style={styles.primaryText}>
+            Back to Home
+          </Text>
+
+          <Ionicons
+            name="arrow-forward"
+            size={20}
+            color="#FFFFFF"
+          />
+        </Pressable>
+
+        <Pressable
+          onPress={handleAnotherReceipt}
+          style={({ pressed }) => [
+            styles.secondaryButton,
+            pressed && styles.secondaryPressed,
+          ]}
+        >
+          <Ionicons
+            name="camera-outline"
+            size={20}
+            color="#0868AE"
+          />
+
+          <Text style={styles.secondaryText}>
+            Submit Another Receipt
+          </Text>
+        </Pressable>
       </View>
 
-      <Pressable
-        style={styles.primaryButton}
-        onPress={goHome}
-      >
-        <Text style={styles.primaryText}>
-          Back to Home
+      {/* FOOTER */}
+
+      <View style={styles.footer}>
+        <Text style={styles.footerText}>
+          SKY AVENIR EXPENSE
         </Text>
 
-        <Ionicons
-          name="arrow-forward"
-          size={20}
-          color="#FFFFFF"
-        />
-      </Pressable>
-
-      <Pressable
-        style={styles.secondaryButton}
-        onPress={addAnother}
-      >
-        <Ionicons
-          name="camera-outline"
-          size={20}
-          color="#075A98"
-        />
-
-        <Text style={styles.secondaryText}>
-          Submit Another Receipt
+        <Text style={styles.footerSubtext}>
+          Simple. Secure. Efficient.
         </Text>
-      </Pressable>
+      </View>
     </View>
   );
 }
@@ -104,109 +156,267 @@ export default function ExpenseSuccessScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#F5F9FC',
+    backgroundColor: '#F4F8FB',
+    overflow: 'hidden',
   },
 
-  successIcon: {
-    width: 92,
-    height: 92,
-    borderRadius: 46,
+  glowOne: {
+    position: 'absolute',
+
+    width: 260,
+    height: 260,
+
+    top: -110,
+    right: -120,
+
+    borderRadius: 130,
+
+    backgroundColor:
+      'rgba(8,104,174,0.06)',
+  },
+
+  glowTwo: {
+    position: 'absolute',
+
+    width: 220,
+    height: 220,
+
+    bottom: -110,
+    left: -100,
+
+    borderRadius: 110,
+
+    backgroundColor:
+      'rgba(22,132,91,0.04)',
+  },
+
+  content: {
+    flex: 1,
+
+    paddingHorizontal: 28,
+
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#16845B',
+  },
+
+  successOuter: {
+    width: 116,
+    height: 116,
+
+    borderRadius: 58,
+
+    alignItems: 'center',
+    justifyContent: 'center',
+
+    backgroundColor: '#DCF2E8',
+  },
+
+  successInner: {
+    width: 88,
+    height: 88,
+
+    borderRadius: 44,
+
+    alignItems: 'center',
+    justifyContent: 'center',
+
+    backgroundColor: '#18885F',
+
+    elevation: 3,
   },
 
   title: {
-    marginTop: 27,
-    fontSize: 28,
+    marginTop: 28,
+
+    textAlign: 'center',
+
+    fontSize: 29,
+    lineHeight: 35,
+
     fontWeight: '700',
-    color: '#082F56',
+
+    color: '#0A3558',
   },
 
   subtitle: {
     marginTop: 10,
-    maxWidth: 330,
+
+    maxWidth: 340,
+
     textAlign: 'center',
+
     fontSize: 14,
     lineHeight: 21,
-    color: '#6D8395',
+
+    color: '#71879A',
   },
 
   statusCard: {
     width: '100%',
-    marginTop: 30,
+
+    marginTop: 29,
+
     padding: 17,
+
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 18,
+
+    borderRadius: 20,
+
     backgroundColor: '#E8F3FA',
   },
 
   statusIcon: {
-    width: 45,
-    height: 45,
-    borderRadius: 14,
+    width: 48,
+    height: 48,
+
+    borderRadius: 15,
+
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#D5EAF6',
+
+    backgroundColor: '#D6EAF6',
   },
 
-  statusText: {
+  statusTextWrap: {
     flex: 1,
     marginLeft: 13,
   },
 
   statusTitle: {
-    fontSize: 14,
+    fontSize: 14.5,
     fontWeight: '700',
+
     color: '#174966',
   },
 
   statusDescription: {
     marginTop: 3,
-    fontSize: 12,
+
+    fontSize: 11.5,
     lineHeight: 17,
-    color: '#5E788B',
+
+    color: '#5E7A8D',
+  },
+
+  infoCard: {
+    width: '100%',
+
+    marginTop: 12,
+
+    paddingHorizontal: 15,
+    paddingVertical: 12,
+
+    flexDirection: 'row',
+    alignItems: 'center',
+
+    gap: 9,
+
+    borderRadius: 16,
+
+    backgroundColor: '#EAF7F0',
+  },
+
+  infoText: {
+    flex: 1,
+
+    fontSize: 11.5,
+    lineHeight: 16,
+
+    color: '#4B6F61',
   },
 
   primaryButton: {
     width: '100%',
     height: 58,
-    marginTop: 30,
-    borderRadius: 16,
+
+    marginTop: 28,
+
+    borderRadius: 17,
+
     flexDirection: 'row',
-    gap: 8,
     alignItems: 'center',
     justifyContent: 'center',
+
+    gap: 8,
+
     backgroundColor: '#0868AE',
+
+    elevation: 3,
   },
 
   primaryText: {
     fontSize: 16,
     fontWeight: '700',
+
     color: '#FFFFFF',
   },
 
   secondaryButton: {
     width: '100%',
     height: 56,
+
     marginTop: 12,
-    borderRadius: 16,
+
+    borderRadius: 17,
+
     flexDirection: 'row',
-    gap: 8,
     alignItems: 'center',
     justifyContent: 'center',
+
+    gap: 8,
+
     borderWidth: 1,
     borderColor: '#C9DDEB',
+
     backgroundColor: '#FFFFFF',
   },
 
   secondaryText: {
-    fontSize: 15,
+    fontSize: 14.5,
     fontWeight: '700',
-    color: '#075A98',
+
+    color: '#0868AE',
+  },
+
+  buttonPressed: {
+    opacity: 0.95,
+
+    transform: [
+      {
+        scale: 0.998,
+      },
+    ],
+  },
+
+  secondaryPressed: {
+    backgroundColor: '#F7FAFC',
+  },
+
+  footer: {
+    position: 'absolute',
+
+    bottom: 30,
+    left: 20,
+    right: 20,
+
+    alignItems: 'center',
+  },
+
+  footerText: {
+    fontSize: 9,
+    fontWeight: '700',
+
+    letterSpacing: 2,
+
+    color: '#70899C',
+  },
+
+  footerSubtext: {
+    marginTop: 4,
+
+    fontSize: 9.5,
+
+    color: '#9AABB7',
   },
 });

@@ -19,11 +19,14 @@ import { signInWithMicrosoft } from '../../../services/auth';
 const backgroundImage = require('../../../assets/images/login-bg.png');
 
 export default function LoginScreen() {
-  const [backgroundReady, setBackgroundReady] = useState(false);
+  const [backgroundReady, setBackgroundReady] =
+    useState(false);
 
-  const [isSigningIn, setIsSigningIn] = useState(false);
+  const [isSigningIn, setIsSigningIn] =
+    useState(false);
 
-  const [loginError, setLoginError] = useState('');
+  const [loginError, setLoginError] =
+    useState('');
 
   const screenOpacity = useRef(
     new Animated.Value(0),
@@ -38,7 +41,7 @@ export default function LoginScreen() {
 
     Animated.timing(screenOpacity, {
       toValue: 1,
-      duration: 450,
+      duration: 350,
       useNativeDriver: true,
     }).start();
   }
@@ -50,15 +53,10 @@ export default function LoginScreen() {
 
     try {
       setIsSigningIn(true);
-
       setLoginError('');
 
-      const user = await signInWithMicrosoft();
-
-      console.log(
-        'Authenticated employee:',
-        user,
-      );
+      const user =
+        await signInWithMicrosoft();
 
       router.replace({
         pathname: '/(tabs)/home',
@@ -96,8 +94,6 @@ export default function LoginScreen() {
         resizeMode="cover"
         onLoadEnd={handleBackgroundLoaded}
       >
-        <View style={styles.softOverlay} />
-
         {backgroundReady && (
           <Animated.View
             style={[
@@ -108,35 +104,19 @@ export default function LoginScreen() {
             ]}
           >
             <View style={styles.content}>
-              {/* Sky Avenir branding */}
+              {/* Logo already exists inside login-bg.png */}
 
-              <View style={styles.brandSection}>
-                <View style={styles.logoWrap}>
-                  <Ionicons
-                    name="paper-plane"
-                    size={46}
-                    color="#DDAA42"
-                  />
-                </View>
+              <View style={styles.logoSpace} />
 
-                <View style={styles.brandRow}>
-                  <Text style={styles.skyText}>
-                    SKY
-                  </Text>
+              {/* EXPENSE */}
 
-                  <Text style={styles.avenirText}>
-                    AVENIR
-                  </Text>
-                </View>
+              <Text style={styles.expenseText}>
+                E X P E N S E
+              </Text>
 
-                <Text style={styles.expenseText}>
-                  E X P E N S E
-                </Text>
+              <View style={styles.goldLine} />
 
-                <View style={styles.goldLine} />
-              </View>
-
-              {/* Welcome */}
+              {/* WELCOME */}
 
               <View style={styles.welcomeSection}>
                 <Text style={styles.welcome}>
@@ -150,7 +130,7 @@ export default function LoginScreen() {
                 </Text>
               </View>
 
-              {/* Microsoft Sign In */}
+              {/* MICROSOFT BUTTON */}
 
               <Pressable
                 onPress={handleMicrosoftSignIn}
@@ -160,16 +140,16 @@ export default function LoginScreen() {
 
                   pressed &&
                     !isSigningIn &&
-                    styles.microsoftButtonPressed,
+                    styles.microsoftPressed,
 
                   isSigningIn &&
-                    styles.microsoftButtonDisabled,
+                    styles.microsoftDisabled,
                 ]}
               >
                 <LinearGradient
                   colors={[
-                    '#075EAA',
-                    '#0879CA',
+                    '#0866B3',
+                    '#1385D2',
                   ]}
                   start={{
                     x: 0,
@@ -181,99 +161,107 @@ export default function LoginScreen() {
                   }}
                   style={styles.microsoftGradient}
                 >
-                  <View style={styles.microsoftLogo}>
-                    <View style={styles.msRow}>
-                      <View
-                        style={[
-                          styles.msSquare,
-                          styles.red,
-                        ]}
-                      />
-
-                      <View
-                        style={[
-                          styles.msSquare,
-                          styles.green,
-                        ]}
-                      />
-                    </View>
-
-                    <View style={styles.msRow}>
-                      <View
-                        style={[
-                          styles.msSquare,
-                          styles.blue,
-                        ]}
-                      />
-
-                      <View
-                        style={[
-                          styles.msSquare,
-                          styles.yellow,
-                        ]}
-                      />
-                    </View>
-                  </View>
-
-                  <Text
-                    style={styles.microsoftText}
+                  <View
+                    style={
+                      styles.microsoftContent
+                    }
                   >
-                    {isSigningIn
-                      ? 'Signing in...'
-                      : 'Sign in with Microsoft'}
-                  </Text>
+                    <MicrosoftLogo />
 
-                  {!isSigningIn && (
-                    <Ionicons
-                      name="arrow-forward"
-                      size={23}
-                      color="#FFFFFF"
-                    />
-                  )}
+                    <Text
+                      style={
+                        styles.microsoftText
+                      }
+                    >
+                      {isSigningIn
+                        ? 'Signing in...'
+                        : 'Sign in with Microsoft'}
+                    </Text>
+                  </View>
                 </LinearGradient>
               </Pressable>
 
-              {/* Login error */}
-
               {loginError ? (
-                <Text style={styles.loginError}>
+                <Text style={styles.error}>
                   {loginError}
                 </Text>
               ) : null}
 
-              {/* Benefits */}
+              {/* FEATURES */}
 
               <View style={styles.features}>
                 <FeatureItem
                   icon="shield-checkmark"
                   title="Secure Access"
-                  subtitle="Your company data stays safe"
+                  subtitle="Your company data stays protected"
                 />
 
                 <FeatureItem
                   icon="people"
                   title="For Sky Avenir Employees"
-                  subtitle="Fast and easy expense submission"
+                  subtitle="Fast and simple expense submission"
                 />
 
                 <FeatureItem
-                  icon="bar-chart"
+                  icon="sparkles"
                   title="More Time for What Matters"
                   subtitle="Less admin, more impact"
                 />
               </View>
             </View>
 
-            {/* Footer */}
+            {/* FOOTER */}
 
             <View style={styles.footer}>
               <Text style={styles.footerText}>
-                PEOPLE   |   PROGRESS   |   A HIGHER TOMORROW
+                PEOPLE  |  PROGRESS  |  A HIGHER TOMORROW
               </Text>
+
+              <View style={styles.footerLine} />
             </View>
           </Animated.View>
         )}
       </ImageBackground>
+    </View>
+  );
+}
+
+/* MICROSOFT LOGO */
+
+function MicrosoftLogo() {
+  return (
+    <View style={styles.microsoftLogo}>
+      <View style={styles.microsoftRow}>
+        <View
+          style={[
+            styles.microsoftSquare,
+            styles.microsoftRed,
+          ]}
+        />
+
+        <View
+          style={[
+            styles.microsoftSquare,
+            styles.microsoftGreen,
+          ]}
+        />
+      </View>
+
+      <View style={styles.microsoftRow}>
+        <View
+          style={[
+            styles.microsoftSquare,
+            styles.microsoftBlue,
+          ]}
+        />
+
+        <View
+          style={[
+            styles.microsoftSquare,
+            styles.microsoftYellow,
+          ]}
+        />
+      </View>
     </View>
   );
 }
@@ -294,12 +282,12 @@ function FeatureItem({
       <View style={styles.featureIcon}>
         <Ionicons
           name={icon}
-          size={27}
-          color="#07518D"
+          size={23}
+          color="#075A98"
         />
       </View>
 
-      <View style={styles.featureText}>
+      <View style={styles.featureContent}>
         <Text style={styles.featureTitle}>
           {title}
         </Text>
@@ -315,18 +303,13 @@ function FeatureItem({
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#F7FBFF',
+    backgroundColor: '#F5FAFE',
   },
 
   background: {
     flex: 1,
-  },
-
-  softOverlay: {
-    ...StyleSheet.absoluteFillObject,
-
-    backgroundColor:
-      'rgba(255,255,255,0.44)',
+    width: '100%',
+    height: '100%',
   },
 
   screen: {
@@ -335,275 +318,258 @@ const styles = StyleSheet.create({
 
   content: {
     flex: 1,
-
-    paddingHorizontal: 24,
-    paddingTop: 72,
+    paddingHorizontal: 27,
   },
 
-  brandSection: {
-    alignItems: 'center',
-  },
+  /*
+   * Logo is inside login-bg.png.
+   *
+   * Reduced from 205 because the previous
+   * version created too much vertical space.
+   */
 
-  logoWrap: {
-    height: 58,
-
-    alignItems: 'center',
-    justifyContent: 'center',
-
-    marginBottom: 6,
-  },
-
-  brandRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-
-  skyText: {
-    fontSize: 31,
-
-    fontWeight: '300',
-
-    letterSpacing: 3.2,
-
-    color: '#73A9CF',
-
-    marginRight: 9,
-  },
-
-  avenirText: {
-    fontSize: 31,
-
-    fontWeight: '700',
-
-    letterSpacing: 1.8,
-
-    color: '#062E56',
+  logoSpace: {
+    height: 185,
   },
 
   expenseText: {
-    marginTop: 4,
+    textAlign: 'center',
 
-    fontSize: 10,
+    fontSize: 9.5,
+    fontWeight: '500',
 
-    letterSpacing: 7,
+    letterSpacing: 6,
 
-    color: '#7189A0',
+    color: '#6E8BA5',
   },
 
   goldLine: {
-    width: 50,
+    alignSelf: 'center',
+
+    width: 48,
     height: 2,
 
-    marginTop: 17,
+    marginTop: 13,
 
-    borderRadius: 20,
+    borderRadius: 10,
 
-    backgroundColor: '#DDA83C',
+    backgroundColor: '#DCA52E',
   },
 
   welcomeSection: {
     alignItems: 'center',
 
-    marginTop: 27,
+    marginTop: 21,
   },
 
   welcome: {
-    fontSize: 34,
-
-    lineHeight: 40,
+    fontSize: 32,
+    lineHeight: 38,
 
     fontWeight: '700',
 
-    color: '#062E56',
+    color: '#06345C',
   },
 
   subtitle: {
-    marginTop: 9,
-
-    fontSize: 15.5,
-
-    lineHeight: 22,
+    marginTop: 7,
 
     textAlign: 'center',
 
-    color: '#405F7C',
+    fontSize: 14.5,
+    lineHeight: 20,
+
+    color: '#42637F',
   },
 
   microsoftButton: {
-    marginTop: 26,
+    marginTop: 22,
 
-    borderRadius: 14,
+    borderRadius: 17,
 
     overflow: 'hidden',
 
-    elevation: 5,
+    elevation: 4,
 
-    shadowColor: '#075EAA',
-
-    shadowOpacity: 0.18,
-
-    shadowRadius: 12,
+    shadowColor: '#075F9E',
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
 
     shadowOffset: {
       width: 0,
-      height: 6,
+      height: 5,
     },
-  },
-
-  microsoftButtonPressed: {
-    opacity: 0.94,
-
-    transform: [
-      {
-        scale: 0.996,
-      },
-    ],
-  },
-
-  microsoftButtonDisabled: {
-    opacity: 0.72,
   },
 
   microsoftGradient: {
     height: 58,
 
-    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
 
+    borderRadius: 17,
+  },
+
+  microsoftContent: {
     flexDirection: 'row',
 
     alignItems: 'center',
-
-    paddingHorizontal: 20,
-  },
-
-  microsoftLogo: {
-    width: 26,
-    height: 26,
-
-    marginRight: 13,
-
-    justifyContent: 'space-between',
-  },
-
-  msRow: {
-    flexDirection: 'row',
-
-    justifyContent: 'space-between',
-  },
-
-  msSquare: {
-    width: 12,
-    height: 12,
-  },
-
-  red: {
-    backgroundColor: '#F35325',
-  },
-
-  green: {
-    backgroundColor: '#81BC06',
-  },
-
-  blue: {
-    backgroundColor: '#05A6F0',
-  },
-
-  yellow: {
-    backgroundColor: '#FFBA08',
+    justifyContent: 'center',
   },
 
   microsoftText: {
-    flex: 1,
+    marginLeft: 12,
 
-    fontSize: 17,
-
-    fontWeight: '600',
+    fontSize: 16.5,
+    fontWeight: '700',
 
     color: '#FFFFFF',
   },
 
-  loginError: {
-    marginTop: 11,
+  microsoftPressed: {
+    opacity: 0.94,
 
-    paddingHorizontal: 10,
+    transform: [
+      {
+        scale: 0.997,
+      },
+    ],
+  },
 
-    fontSize: 13,
+  microsoftDisabled: {
+    opacity: 0.7,
+  },
 
-    lineHeight: 18,
+  microsoftLogo: {
+    width: 24,
+    height: 24,
+
+    justifyContent: 'space-between',
+  },
+
+  microsoftRow: {
+    flexDirection: 'row',
+
+    justifyContent: 'space-between',
+  },
+
+  microsoftSquare: {
+    width: 11,
+    height: 11,
+  },
+
+  microsoftRed: {
+    backgroundColor: '#F35325',
+  },
+
+  microsoftGreen: {
+    backgroundColor: '#81BC06',
+  },
+
+  microsoftBlue: {
+    backgroundColor: '#05A6F0',
+  },
+
+  microsoftYellow: {
+    backgroundColor: '#FFBA08',
+  },
+
+  error: {
+    marginTop: 8,
+
+    paddingHorizontal: 12,
 
     textAlign: 'center',
+
+    fontSize: 11.5,
+    lineHeight: 16,
 
     color: '#B42318',
   },
 
+  /*
+   * Slightly higher and tighter than before
+   * so the mountains do not interfere
+   * with the last feature.
+   */
+
   features: {
-    marginTop: 25,
+    marginTop: 19,
   },
 
   featureRow: {
+    minHeight: 58,
+
+    marginBottom: 12,
+
     flexDirection: 'row',
-
     alignItems: 'center',
-
-    marginBottom: 21,
   },
 
   featureIcon: {
-    width: 53,
-    height: 53,
+    width: 49,
+    height: 49,
 
-    borderRadius: 27,
-
-    backgroundColor:
-      'rgba(220,236,248,0.92)',
+    borderRadius: 25,
 
     alignItems: 'center',
-
     justifyContent: 'center',
 
-    marginRight: 15,
+    marginRight: 14,
+
+    backgroundColor:
+      'rgba(220,238,250,0.93)',
   },
 
-  featureText: {
+  featureContent: {
     flex: 1,
   },
 
   featureTitle: {
-    fontSize: 16,
-
+    fontSize: 14.5,
     fontWeight: '700',
 
-    color: '#082F56',
+    color: '#07365F',
   },
 
   featureSubtitle: {
-    marginTop: 3,
+    marginTop: 2,
 
-    fontSize: 13.5,
+    fontSize: 12,
+    lineHeight: 16,
 
-    lineHeight: 18,
-
-    color: '#4B6A88',
+    color: '#4E6F8B',
   },
 
   footer: {
     position: 'absolute',
 
-    bottom: 26,
-
     left: 20,
     right: 20,
+    bottom: 21,
 
     alignItems: 'center',
   },
 
   footerText: {
-    fontSize: 8.5,
+    textAlign: 'center',
 
-    letterSpacing: 2,
+    fontSize: 7.2,
+    fontWeight: '600',
 
-    color: '#173F66',
+    letterSpacing: 1.45,
 
-    fontWeight: '500',
+    color: '#315A7D',
+  },
+
+  footerLine: {
+    width: 42,
+    height: 2,
+
+    marginTop: 9,
+
+    borderRadius: 10,
+
+    backgroundColor: '#DCA52E',
   },
 });
