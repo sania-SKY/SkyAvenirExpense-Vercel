@@ -1,81 +1,322 @@
-import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
+import {
+  Ionicons,
+} from '@expo/vector-icons';
 
 import {
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    View,
+  router,
+  useFocusEffect,
+} from 'expo-router';
+
+import {
+  StatusBar,
+} from 'expo-status-bar';
+
+import {
+  useCallback,
+  useState,
+} from 'react';
+
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
 } from 'react-native';
 
 import {
-    ExpenseStatus,
-    MockExpense,
-    mockExpenses,
-} from '../../../data/mockExpenses';
+  authenticatedFetch,
+  getCurrentUser,
+} from '../../../services/auth';
+
+type ExpenseStatus =
+  | 'SUBMITTED'
+  | 'PROCESSING'
+  | 'COMPLETED'
+  | 'REJECTED'
+  | 'FAILED';
+
+type Expense = {
+  id: string;
+
+  category: string;
+
+  business_purpose:
+    string;
+
+  comments:
+    string | null;
+
+  receipt_storage_key:
+    string | null;
+
+  status:
+    ExpenseStatus;
+
+  external_reference?:
+    string | null;
+
+  external_status?:
+    string | null;
+
+  external_error?:
+    string | null;
+
+  last_sync_at?:
+    string | null;
+
+  submitted_at:
+    string;
+
+  created_at:
+    string;
+
+  updated_at:
+    string;
+
+  attendees:
+    string[];
+};
+
+type HomeStatus =
+  | 'Submitted'
+  | 'Processing'
+  | 'Needs Review';
 
 export default function HomeScreen() {
+  const user =
+    getCurrentUser();
+
+  const [
+    expenses,
+    setExpenses,
+  ] = useState<Expense[]>([]);
+
+  const [
+    loadingExpenses,
+    setLoadingExpenses,
+  ] = useState(true);
+
+  const [
+    expenseError,
+    setExpenseError,
+  ] = useState<
+    string | null
+  >(null);
+
+  /*
+   * ------------------------------------------------
+   * Load REAL expenses from PostgreSQL through
+   * GET /api/expenses/my.
+   *
+   * useFocusEffect means Home reloads when the
+   * employee returns after submitting an expense.
+   * ------------------------------------------------
+   */
+
+  const loadExpenses =
+    useCallback(
+      async () => {
+        try {
+          setExpenseError(
+            null,
+          );
+
+          setLoadingExpenses(
+            true,
+          );
+
+          const response =
+            await authenticatedFetch(
+              '/api/expenses/my',
+            );
+
+          const data =
+            await response.json();
+
+          if (!response.ok) {
+            throw new Error(
+              data.message ??
+                'Unable to load expenses.',
+            );
+          }
+
+          setExpenses(
+            Array.isArray(
+              data.expenses,
+            )
+              ? data.expenses
+              : [],
+          );
+        } catch (error) {
+          console.error(
+            'Home expense loading error:',
+            error,
+          );
+
+          setExpenseError(
+            error instanceof Error
+              ? error.message
+              : 'Unable to load expenses.',
+          );
+        } finally {
+          setLoadingExpenses(
+            false,
+          );
+        }
+      },
+      [],
+    );
+
+  useFocusEffect(
+    useCallback(
+      () => {
+        loadExpenses();
+      },
+      [
+        loadExpenses,
+      ],
+    ),
+  );
+
+  /*
+   * ------------------------------------------------
+   * REAL STATUS COUNTS
+   * ------------------------------------------------
+   */
+
   const submitted =
-    mockExpenses.filter(
-      (item) =>
-        item.status === 'Submitted',
+    expenses.filter(
+      (expense) =>
+        expense.status ===
+          'SUBMITTED' ||
+        expense.status ===
+          'COMPLETED',
     ).length;
 
   const processing =
-    mockExpenses.filter(
-      (item) =>
-        item.status === 'Processing',
+    expenses.filter(
+      (expense) =>
+        expense.status ===
+        'PROCESSING',
     ).length;
 
   const review =
-    mockExpenses.filter(
-      (item) =>
-        item.status === 'Needs Review',
+    expenses.filter(
+      (expense) =>
+        expense.status ===
+          'REJECTED' ||
+        expense.status ===
+          'FAILED',
     ).length;
 
+  /*
+   * ------------------------------------------------
+   * Employee initials
+   * ------------------------------------------------
+   */
+
+  const initials =
+    getInitials(
+      user?.name,
+    );
+
   return (
-    <View style={styles.container}>
+    <View
+      style={
+        styles.container
+      }
+    >
       <StatusBar
         style="light"
         backgroundColor="#06395E"
       />
 
       <ScrollView
-        showsVerticalScrollIndicator={false}
+        showsVerticalScrollIndicator={
+          false
+        }
         contentContainerStyle={
           styles.scrollContent
         }
       >
         {/* PREMIUM HEADER */}
 
-        <View style={styles.header}>
-          <View style={styles.headerGlowOne} />
-          <View style={styles.headerGlowTwo} />
+        <View
+          style={
+            styles.header
+          }
+        >
+          <View
+            style={
+              styles.headerGlowOne
+            }
+          />
 
-          <View style={styles.headerTop}>
-            <View style={styles.headerText}>
-              <Text style={styles.brandMini}>
+          <View
+            style={
+              styles.headerGlowTwo
+            }
+          />
+
+          <View
+            style={
+              styles.headerTop
+            }
+          >
+            <View
+              style={
+                styles.headerText
+              }
+            >
+              <Text
+                style={
+                  styles.brandMini
+                }
+              >
                 SKY AVENIR EXPENSE
               </Text>
 
-              <Text style={styles.greeting}>
+              <Text
+                style={
+                  styles.greeting
+                }
+              >
                 Good morning,
               </Text>
 
-              <Text style={styles.employeeName}>
-                Sky Avenir Employee
+              <Text
+                style={
+                  styles.employeeName
+                }
+                numberOfLines={1}
+              >
+                {user?.name ??
+                  'Employee'}
               </Text>
 
-              <Text style={styles.subtitle}>
-                Let's take care of your expenses.
+              <Text
+                style={
+                  styles.subtitle
+                }
+              >
+                Let's take care of
+                your expenses.
               </Text>
             </View>
 
-            <Pressable style={styles.avatar}>
-              <Text style={styles.avatarText}>
-                SA
+            <Pressable
+              style={
+                styles.avatar
+              }
+            >
+              <Text
+                style={
+                  styles.avatarText
+                }
+              >
+                {initials}
               </Text>
             </Pressable>
           </View>
@@ -85,18 +326,28 @@ export default function HomeScreen() {
 
         <Pressable
           onPress={() =>
-            router.push('/expense/capture')
+            router.push(
+              '/expense/capture',
+            )
           }
-          style={({ pressed }) => [
+          style={({
+            pressed,
+          }) => [
             styles.captureCard,
 
             pressed &&
               styles.pressedCard,
           ]}
         >
-          <View style={styles.captureIconOuter}>
+          <View
+            style={
+              styles.captureIconOuter
+            }
+          >
             <View
-              style={styles.captureIconInner}
+              style={
+                styles.captureIconInner
+              }
             >
               <Ionicons
                 name="camera"
@@ -106,17 +357,34 @@ export default function HomeScreen() {
             </View>
           </View>
 
-          <View style={styles.captureContent}>
-            <Text style={styles.captureTitle}>
+          <View
+            style={
+              styles.captureContent
+            }
+          >
+            <Text
+              style={
+                styles.captureTitle
+              }
+            >
               Capture Receipt
             </Text>
 
-            <Text style={styles.captureDescription}>
-              Take a photo or upload from gallery
+            <Text
+              style={
+                styles.captureDescription
+              }
+            >
+              Take a photo or upload
+              from gallery
             </Text>
           </View>
 
-          <View style={styles.arrowCircle}>
+          <View
+            style={
+              styles.arrowCircle
+            }
+          >
             <Ionicons
               name="arrow-forward"
               size={20}
@@ -127,23 +395,33 @@ export default function HomeScreen() {
 
         {/* STATUS */}
 
-        <View style={styles.statusRow}>
+        <View
+          style={
+            styles.statusRow
+          }
+        >
           <StatusCard
-            value={submitted}
+            value={
+              submitted
+            }
             label="Submitted"
             status="Submitted"
             icon="checkmark-circle-outline"
           />
 
           <StatusCard
-            value={processing}
+            value={
+              processing
+            }
             label="Processing"
             status="Processing"
             icon="time-outline"
           />
 
           <StatusCard
-            value={review}
+            value={
+              review
+            }
             label="Needs Review"
             status="Needs Review"
             icon="alert-circle-outline"
@@ -152,55 +430,184 @@ export default function HomeScreen() {
 
         {/* RECENT HEADER */}
 
-        <View style={styles.sectionHeader}>
+        <View
+          style={
+            styles.sectionHeader
+          }
+        >
           <View>
-            <Text style={styles.sectionTitle}>
+            <Text
+              style={
+                styles.sectionTitle
+              }
+            >
               Recent Expenses
             </Text>
 
-            <Text style={styles.sectionSubtitle}>
+            <Text
+              style={
+                styles.sectionSubtitle
+              }
+            >
               Your latest submissions
             </Text>
           </View>
 
           <Pressable
             onPress={() =>
-              router.push('/(tabs)/expenses')
+              router.push(
+                '/(tabs)/expenses',
+              )
             }
           >
-            <Text style={styles.viewAll}>
+            <Text
+              style={
+                styles.viewAll
+              }
+            >
               View All
             </Text>
           </Pressable>
         </View>
 
-        {/* RECENT EXPENSES */}
+        {/* REAL EXPENSE DATA */}
 
-        <View style={styles.expenseCard}>
-          {mockExpenses
-            .slice(0, 4)
-            .map((expense, index) => (
-              <ExpenseRow
-                key={expense.id}
-                expense={expense}
-                last={
-                  index ===
-                  Math.min(
-                    mockExpenses.length,
-                    4,
-                  ) -
-                    1
-                }
+        <View
+          style={
+            styles.expenseCard
+          }
+        >
+          {loadingExpenses ? (
+            <View
+              style={
+                styles.stateContainer
+              }
+            >
+              <ActivityIndicator
+                size="small"
+                color="#0868AE"
               />
-            ))}
+
+              <Text
+                style={
+                  styles.stateText
+                }
+              >
+                Loading expenses...
+              </Text>
+            </View>
+          ) : expenseError ? (
+            <View
+              style={
+                styles.stateContainer
+              }
+            >
+              <Ionicons
+                name="alert-circle-outline"
+                size={24}
+                color="#B23B34"
+              />
+
+              <Text
+                style={
+                  styles.errorText
+                }
+              >
+                {expenseError}
+              </Text>
+
+              <Pressable
+                onPress={
+                  loadExpenses
+                }
+                style={
+                  styles.retryButton
+                }
+              >
+                <Text
+                  style={
+                    styles.retryText
+                  }
+                >
+                  Try Again
+                </Text>
+              </Pressable>
+            </View>
+          ) : expenses.length ===
+            0 ? (
+            <View
+              style={
+                styles.stateContainer
+              }
+            >
+              <Ionicons
+                name="receipt-outline"
+                size={27}
+                color="#8DA2B3"
+              />
+
+              <Text
+                style={
+                  styles.emptyTitle
+                }
+              >
+                No expenses yet
+              </Text>
+
+              <Text
+                style={
+                  styles.stateText
+                }
+              >
+                Your submitted
+                expenses will appear
+                here.
+              </Text>
+            </View>
+          ) : (
+            expenses
+              .slice(
+                0,
+                4,
+              )
+              .map(
+                (
+                  expense,
+                  index,
+                ) => (
+                  <ExpenseRow
+                    key={
+                      expense.id
+                    }
+                    expense={
+                      expense
+                    }
+                    last={
+                      index ===
+                      Math.min(
+                        expenses.length,
+                        4,
+                      ) -
+                        1
+                    }
+                  />
+                ),
+              )
+          )}
         </View>
       </ScrollView>
 
       {/* BOTTOM NAVIGATION */}
 
-      <View style={styles.bottomNav}>
+      <View
+        style={
+          styles.bottomNav
+        }
+      >
         <Pressable
-          style={styles.navItem}
+          style={
+            styles.navItem
+          }
         >
           <Ionicons
             name="home"
@@ -208,16 +615,24 @@ export default function HomeScreen() {
             color="#0868AE"
           />
 
-          <Text style={styles.navActive}>
+          <Text
+            style={
+              styles.navActive
+            }
+          >
             Home
           </Text>
         </Pressable>
 
         <Pressable
           onPress={() =>
-            router.push('/expense/capture')
+            router.push(
+              '/expense/capture',
+            )
           }
-          style={styles.mainCameraButton}
+          style={
+            styles.mainCameraButton
+          }
         >
           <Ionicons
             name="camera"
@@ -228,9 +643,13 @@ export default function HomeScreen() {
 
         <Pressable
           onPress={() =>
-            router.push('/(tabs)/expenses')
+            router.push(
+              '/(tabs)/expenses',
+            )
           }
-          style={styles.navItem}
+          style={
+            styles.navItem
+          }
         >
           <Ionicons
             name="receipt-outline"
@@ -238,7 +657,11 @@ export default function HomeScreen() {
             color="#8DA2B3"
           />
 
-          <Text style={styles.navInactive}>
+          <Text
+            style={
+              styles.navInactive
+            }
+          >
             My Expenses
           </Text>
         </Pressable>
@@ -247,10 +670,20 @@ export default function HomeScreen() {
   );
 }
 
+/*
+ * ------------------------------------------------
+ * STATUS CARD
+ * ------------------------------------------------
+ */
+
 type StatusCardProps = {
   value: number;
+
   label: string;
-  status: ExpenseStatus;
+
+  status:
+    HomeStatus;
+
   icon:
     keyof typeof Ionicons.glyphMap;
 };
@@ -262,25 +695,37 @@ function StatusCard({
   icon,
 }: StatusCardProps) {
   const theme =
-    status === 'Submitted'
+    status ===
+    'Submitted'
       ? {
-          background: '#E8F7EF',
-          foreground: '#17875D',
+          background:
+            '#E8F7EF',
+
+          foreground:
+            '#17875D',
         }
-      : status === 'Processing'
+      : status ===
+          'Processing'
         ? {
-            background: '#FFF4DD',
-            foreground: '#A66A00',
+            background:
+              '#FFF4DD',
+
+            foreground:
+              '#A66A00',
           }
         : {
-            background: '#FDECEA',
-            foreground: '#B23B34',
+            background:
+              '#FDECEA',
+
+            foreground:
+              '#B23B34',
           };
 
   return (
     <View
       style={[
         styles.statusCard,
+
         {
           backgroundColor:
             theme.background,
@@ -290,51 +735,85 @@ function StatusCard({
       <Ionicons
         name={icon}
         size={18}
-        color={theme.foreground}
+        color={
+          theme.foreground
+        }
       />
 
       <Text
         style={[
           styles.statusValue,
+
           {
-            color: theme.foreground,
+            color:
+              theme.foreground,
           },
         ]}
       >
         {value}
       </Text>
 
-      <Text style={styles.statusLabel}>
+      <Text
+        style={
+          styles.statusLabel
+        }
+      >
         {label}
       </Text>
     </View>
   );
 }
 
+/*
+ * ------------------------------------------------
+ * EXPENSE ROW
+ * ------------------------------------------------
+ */
+
 type ExpenseRowProps = {
-  expense: MockExpense;
-  last: boolean;
+  expense:
+    Expense;
+
+  last:
+    boolean;
 };
 
 function ExpenseRow({
   expense,
   last,
 }: ExpenseRowProps) {
+  const displayStatus =
+    getStatusLabel(
+      expense.status,
+    );
+
   const statusTheme =
-    expense.status === 'Submitted'
+    expense.status ===
+      'SUBMITTED' ||
+    expense.status ===
+      'COMPLETED'
       ? {
-          background: '#E8F7EF',
-          foreground: '#16845B',
+          background:
+            '#E8F7EF',
+
+          foreground:
+            '#16845B',
         }
       : expense.status ===
-          'Processing'
+          'PROCESSING'
         ? {
-            background: '#FFF4DD',
-            foreground: '#A66A00',
+            background:
+              '#FFF4DD',
+
+            foreground:
+              '#A66A00',
           }
         : {
-            background: '#FDECEA',
-            foreground: '#B23B34',
+            background:
+              '#FDECEA',
+
+            foreground:
+              '#B23B34',
           };
 
   return (
@@ -346,42 +825,64 @@ function ExpenseRow({
           styles.expenseDivider,
       ]}
     >
-      <View style={styles.expenseIcon}>
+      <View
+        style={
+          styles.expenseIcon
+        }
+      >
         <Ionicons
-          name={expense.icon}
+          name={getCategoryIcon(
+            expense.category,
+          )}
           size={22}
           color="#0868AE"
         />
       </View>
 
-      <View style={styles.expenseInfo}>
+      <View
+        style={
+          styles.expenseInfo
+        }
+      >
         <Text
           numberOfLines={1}
-          style={styles.expenseCategory}
+          style={
+            styles.expenseCategory
+          }
         >
           {expense.category}
         </Text>
 
         <Text
           numberOfLines={1}
-          style={styles.expensePurpose}
+          style={
+            styles.expensePurpose
+          }
         >
-          {expense.businessPurpose}
+          {expense.business_purpose}
         </Text>
 
-        <Text style={styles.expenseDate}>
-          {expense.date}
+        <Text
+          style={
+            styles.expenseDate
+          }
+        >
+          {formatExpenseDate(
+            expense.submitted_at ??
+              expense.created_at,
+          )}
         </Text>
       </View>
 
-      <View style={styles.expenseRight}>
-        <Text style={styles.expenseAmount}>
-          {expense.amount}
-        </Text>
-
+      <View
+        style={
+          styles.expenseRight
+        }
+      >
         <View
           style={[
             styles.statusChip,
+
             {
               backgroundColor:
                 statusTheme.background,
@@ -391,13 +892,14 @@ function ExpenseRow({
           <Text
             style={[
               styles.statusChipText,
+
               {
                 color:
                   statusTheme.foreground,
               },
             ]}
           >
-            {expense.status}
+            {displayStatus}
           </Text>
         </View>
       </View>
@@ -405,64 +907,267 @@ function ExpenseRow({
   );
 }
 
+/*
+ * ------------------------------------------------
+ * HELPERS
+ * ------------------------------------------------
+ */
+
+function getInitials(
+  name?: string,
+) {
+  if (!name) {
+    return 'SA';
+  }
+
+  const parts =
+    name
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean);
+
+  if (
+    parts.length === 0
+  ) {
+    return 'SA';
+  }
+
+  if (
+    parts.length === 1
+  ) {
+    return parts[0]
+      .slice(0, 2)
+      .toUpperCase();
+  }
+
+  return (
+    parts[0][0] +
+    parts[
+      parts.length - 1
+    ][0]
+  ).toUpperCase();
+}
+
+function getStatusLabel(
+  status:
+    ExpenseStatus,
+) {
+  switch (status) {
+    case 'SUBMITTED':
+      return 'Submitted';
+
+    case 'PROCESSING':
+      return 'Processing';
+
+    case 'COMPLETED':
+      return 'Completed';
+
+    case 'REJECTED':
+      return 'Needs Review';
+
+    case 'FAILED':
+      return 'Needs Review';
+
+    default:
+      return status;
+  }
+}
+
+function formatExpenseDate(
+  value?: string,
+) {
+  if (!value) {
+    return '';
+  }
+
+  const date =
+    new Date(
+      value,
+    );
+
+  if (
+    Number.isNaN(
+      date.getTime(),
+    )
+  ) {
+    return value;
+  }
+
+  return date.toLocaleDateString(
+    undefined,
+    {
+      month:
+        'short',
+
+      day:
+        'numeric',
+
+      year:
+        'numeric',
+    },
+  );
+}
+
+function getCategoryIcon(
+  category:
+    string,
+):
+  keyof typeof Ionicons.glyphMap {
+  const normalized =
+    category
+      .toLowerCase();
+
+  if (
+    normalized.includes(
+      'lodg',
+    ) ||
+    normalized.includes(
+      'hotel',
+    )
+  ) {
+    return 'bed-outline';
+  }
+
+  if (
+    normalized.includes(
+      'meal',
+    ) ||
+    normalized.includes(
+      'food',
+    ) ||
+    normalized.includes(
+      'entertain',
+    )
+  ) {
+    return 'restaurant-outline';
+  }
+
+  if (
+    normalized.includes(
+      'air',
+    ) ||
+    normalized.includes(
+      'flight',
+    )
+  ) {
+    return 'airplane-outline';
+  }
+
+  if (
+    normalized.includes(
+      'fuel',
+    ) ||
+    normalized.includes(
+      'car',
+    ) ||
+    normalized.includes(
+      'ground',
+    ) ||
+    normalized.includes(
+      'parking',
+    )
+  ) {
+    return 'car-outline';
+  }
+
+  return 'receipt-outline';
+}
+
+/*
+ * ------------------------------------------------
+ * STYLES
+ * ------------------------------------------------
+ */
+
 const styles =
   StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: '#F4F8FB',
+
+      backgroundColor:
+        '#F4F8FB',
     },
 
     scrollContent: {
-      paddingBottom: 125,
+      paddingBottom:
+        125,
     },
 
     header: {
-      minHeight: 230,
+      minHeight:
+        230,
 
-      paddingTop: 55,
-      paddingHorizontal: 22,
-      paddingBottom: 48,
+      paddingTop:
+        55,
 
-      overflow: 'hidden',
+      paddingHorizontal:
+        22,
 
-      backgroundColor: '#06395E',
+      paddingBottom:
+        48,
+
+      overflow:
+        'hidden',
+
+      backgroundColor:
+        '#06395E',
     },
 
     headerGlowOne: {
-      position: 'absolute',
+      position:
+        'absolute',
 
-      width: 200,
-      height: 200,
+      width:
+        200,
 
-      right: -70,
-      top: -60,
+      height:
+        200,
 
-      borderRadius: 100,
+      right:
+        -70,
+
+      top:
+        -60,
+
+      borderRadius:
+        100,
 
       backgroundColor:
         'rgba(35,133,190,0.18)',
     },
 
     headerGlowTwo: {
-      position: 'absolute',
+      position:
+        'absolute',
 
-      width: 170,
-      height: 170,
+      width:
+        170,
 
-      left: -100,
-      bottom: -100,
+      height:
+        170,
 
-      borderRadius: 85,
+      left:
+        -100,
+
+      bottom:
+        -100,
+
+      borderRadius:
+        85,
 
       backgroundColor:
         'rgba(255,255,255,0.05)',
     },
 
     headerTop: {
-      flexDirection: 'row',
+      flexDirection:
+        'row',
+
       justifyContent:
         'space-between',
-      alignItems: 'flex-start',
+
+      alignItems:
+        'flex-start',
     },
 
     headerText: {
@@ -470,401 +1175,709 @@ const styles =
     },
 
     brandMini: {
-      marginBottom: 18,
+      marginBottom:
+        18,
 
-      fontSize: 9,
-      fontWeight: '700',
+      fontSize:
+        9,
 
-      letterSpacing: 2.6,
+      fontWeight:
+        '700',
+
+      letterSpacing:
+        2.6,
 
       color:
         'rgba(255,255,255,0.58)',
     },
 
     greeting: {
-      fontSize: 14,
+      fontSize:
+        14,
 
       color:
         'rgba(255,255,255,0.78)',
     },
 
     employeeName: {
-      marginTop: 2,
+      marginTop:
+        2,
 
-      fontSize: 27,
-      lineHeight: 33,
+      paddingRight:
+        10,
 
-      fontWeight: '700',
+      fontSize:
+        27,
 
-      color: '#FFFFFF',
+      lineHeight:
+        33,
+
+      fontWeight:
+        '700',
+
+      color:
+        '#FFFFFF',
     },
 
     subtitle: {
-      marginTop: 5,
+      marginTop:
+        5,
 
-      fontSize: 13,
+      fontSize:
+        13,
 
       color:
         'rgba(255,255,255,0.74)',
     },
 
     avatar: {
-      width: 48,
-      height: 48,
+      width:
+        48,
 
-      borderRadius: 24,
+      height:
+        48,
 
-      alignItems: 'center',
-      justifyContent: 'center',
+      borderRadius:
+        24,
 
-      backgroundColor: '#FFFFFF',
+      alignItems:
+        'center',
 
-      borderWidth: 3,
+      justifyContent:
+        'center',
+
+      backgroundColor:
+        '#FFFFFF',
+
+      borderWidth:
+        3,
+
       borderColor:
         'rgba(255,255,255,0.20)',
     },
 
     avatarText: {
-      fontSize: 14,
-      fontWeight: '700',
+      fontSize:
+        14,
 
-      color: '#06395E',
+      fontWeight:
+        '700',
+
+      color:
+        '#06395E',
     },
 
     captureCard: {
-      marginTop: -40,
-      marginHorizontal: 20,
+      marginTop:
+        -40,
 
-      minHeight: 120,
+      marginHorizontal:
+        20,
 
-      paddingHorizontal: 17,
-      paddingVertical: 18,
+      minHeight:
+        120,
 
-      flexDirection: 'row',
-      alignItems: 'center',
+      paddingHorizontal:
+        17,
 
-      borderRadius: 23,
+      paddingVertical:
+        18,
 
-      backgroundColor: '#FFFFFF',
+      flexDirection:
+        'row',
 
-      elevation: 6,
+      alignItems:
+        'center',
 
-      shadowColor: '#07304E',
-      shadowOpacity: 0.12,
-      shadowRadius: 17,
+      borderRadius:
+        23,
+
+      backgroundColor:
+        '#FFFFFF',
+
+      elevation:
+        6,
+
+      shadowColor:
+        '#07304E',
+
+      shadowOpacity:
+        0.12,
+
+      shadowRadius:
+        17,
+
       shadowOffset: {
-        width: 0,
-        height: 8,
+        width:
+          0,
+
+        height:
+          8,
       },
     },
 
     pressedCard: {
-      opacity: 0.96,
+      opacity:
+        0.96,
+
       transform: [
         {
-          scale: 0.997,
+          scale:
+            0.997,
         },
       ],
     },
 
     captureIconOuter: {
-      width: 72,
-      height: 72,
+      width:
+        72,
 
-      borderRadius: 36,
+      height:
+        72,
 
-      alignItems: 'center',
-      justifyContent: 'center',
+      borderRadius:
+        36,
 
-      backgroundColor: '#E6F2FA',
+      alignItems:
+        'center',
+
+      justifyContent:
+        'center',
+
+      backgroundColor:
+        '#E6F2FA',
     },
 
     captureIconInner: {
-      width: 54,
-      height: 54,
+      width:
+        54,
 
-      borderRadius: 27,
+      height:
+        54,
 
-      alignItems: 'center',
-      justifyContent: 'center',
+      borderRadius:
+        27,
 
-      backgroundColor: '#0868AE',
+      alignItems:
+        'center',
+
+      justifyContent:
+        'center',
+
+      backgroundColor:
+        '#0868AE',
     },
 
     captureContent: {
       flex: 1,
 
-      marginLeft: 15,
+      marginLeft:
+        15,
     },
 
     captureTitle: {
-      fontSize: 20,
-      fontWeight: '700',
+      fontSize:
+        20,
 
-      color: '#0B3558',
+      fontWeight:
+        '700',
+
+      color:
+        '#0B3558',
     },
 
     captureDescription: {
-      marginTop: 5,
+      marginTop:
+        5,
 
-      maxWidth: 190,
+      maxWidth:
+        190,
 
-      fontSize: 12,
-      lineHeight: 17,
+      fontSize:
+        12,
 
-      color: '#71889B',
+      lineHeight:
+        17,
+
+      color:
+        '#71889B',
     },
 
     arrowCircle: {
-      width: 36,
-      height: 36,
+      width:
+        36,
 
-      borderRadius: 18,
+      height:
+        36,
 
-      alignItems: 'center',
-      justifyContent: 'center',
+      borderRadius:
+        18,
 
-      backgroundColor: '#EEF6FB',
+      alignItems:
+        'center',
+
+      justifyContent:
+        'center',
+
+      backgroundColor:
+        '#EEF6FB',
     },
 
     statusRow: {
-      marginTop: 18,
+      marginTop:
+        18,
 
-      paddingHorizontal: 20,
+      paddingHorizontal:
+        20,
 
-      flexDirection: 'row',
+      flexDirection:
+        'row',
 
-      gap: 10,
+      gap:
+        10,
     },
 
     statusCard: {
       flex: 1,
 
-      height: 108,
+      height:
+        108,
 
-      borderRadius: 19,
+      borderRadius:
+        19,
 
-      alignItems: 'center',
-      justifyContent: 'center',
+      alignItems:
+        'center',
+
+      justifyContent:
+        'center',
     },
 
     statusValue: {
-      marginTop: 3,
+      marginTop:
+        3,
 
-      fontSize: 25,
-      lineHeight: 29,
+      fontSize:
+        25,
 
-      fontWeight: '700',
+      lineHeight:
+        29,
+
+      fontWeight:
+        '700',
     },
 
     statusLabel: {
-      marginTop: 4,
+      marginTop:
+        4,
 
-      fontSize: 10.5,
-      lineHeight: 14,
+      fontSize:
+        10.5,
 
-      textAlign: 'center',
+      lineHeight:
+        14,
 
-      fontWeight: '600',
+      textAlign:
+        'center',
 
-      color: '#647B8D',
+      fontWeight:
+        '600',
+
+      color:
+        '#647B8D',
     },
 
     sectionHeader: {
-      marginTop: 29,
+      marginTop:
+        29,
 
-      paddingHorizontal: 20,
+      paddingHorizontal:
+        20,
 
-      flexDirection: 'row',
-      alignItems: 'center',
+      flexDirection:
+        'row',
+
+      alignItems:
+        'center',
+
       justifyContent:
         'space-between',
     },
 
     sectionTitle: {
-      fontSize: 19,
-      fontWeight: '700',
+      fontSize:
+        19,
 
-      color: '#0B3558',
+      fontWeight:
+        '700',
+
+      color:
+        '#0B3558',
     },
 
     sectionSubtitle: {
-      marginTop: 3,
+      marginTop:
+        3,
 
-      fontSize: 11,
+      fontSize:
+        11,
 
-      color: '#899CAB',
+      color:
+        '#899CAB',
     },
 
     viewAll: {
-      fontSize: 12,
-      fontWeight: '700',
+      fontSize:
+        12,
 
-      color: '#0868AE',
+      fontWeight:
+        '700',
+
+      color:
+        '#0868AE',
     },
 
     expenseCard: {
-      marginTop: 13,
-      marginHorizontal: 20,
+      marginTop:
+        13,
 
-      borderRadius: 22,
+      marginHorizontal:
+        20,
 
-      overflow: 'hidden',
+      borderRadius:
+        22,
 
-      backgroundColor: '#FFFFFF',
+      overflow:
+        'hidden',
 
-      elevation: 1,
+      backgroundColor:
+        '#FFFFFF',
+
+      elevation:
+        1,
+    },
+
+    stateContainer: {
+      minHeight:
+        150,
+
+      paddingHorizontal:
+        25,
+
+      paddingVertical:
+        28,
+
+      alignItems:
+        'center',
+
+      justifyContent:
+        'center',
+    },
+
+    stateText: {
+      marginTop:
+        9,
+
+      fontSize:
+        11.5,
+
+      lineHeight:
+        17,
+
+      textAlign:
+        'center',
+
+      color:
+        '#8296A6',
+    },
+
+    emptyTitle: {
+      marginTop:
+        9,
+
+      fontSize:
+        14,
+
+      fontWeight:
+        '700',
+
+      color:
+        '#294F6D',
+    },
+
+    errorText: {
+      marginTop:
+        8,
+
+      fontSize:
+        11.5,
+
+      lineHeight:
+        17,
+
+      textAlign:
+        'center',
+
+      color:
+        '#B23B34',
+    },
+
+    retryButton: {
+      marginTop:
+        12,
+
+      paddingHorizontal:
+        15,
+
+      paddingVertical:
+        8,
+
+      borderRadius:
+        15,
+
+      backgroundColor:
+        '#EEF6FB',
+    },
+
+    retryText: {
+      fontSize:
+        11,
+
+      fontWeight:
+        '700',
+
+      color:
+        '#0868AE',
     },
 
     expenseRow: {
-      minHeight: 83,
+      minHeight:
+        83,
 
-      paddingHorizontal: 13,
-      paddingVertical: 13,
+      paddingHorizontal:
+        13,
 
-      flexDirection: 'row',
-      alignItems: 'center',
+      paddingVertical:
+        13,
+
+      flexDirection:
+        'row',
+
+      alignItems:
+        'center',
     },
 
     expenseDivider: {
-      borderBottomWidth: 1,
-      borderBottomColor: '#EDF2F5',
+      borderBottomWidth:
+        1,
+
+      borderBottomColor:
+        '#EDF2F5',
     },
 
     expenseIcon: {
-      width: 46,
-      height: 46,
+      width:
+        46,
 
-      borderRadius: 15,
+      height:
+        46,
 
-      alignItems: 'center',
-      justifyContent: 'center',
+      borderRadius:
+        15,
 
-      backgroundColor: '#E8F3FA',
+      alignItems:
+        'center',
+
+      justifyContent:
+        'center',
+
+      backgroundColor:
+        '#E8F3FA',
     },
 
     expenseInfo: {
-      flex: 1,
+      flex:
+        1,
 
-      marginLeft: 11,
-      paddingRight: 5,
+      marginLeft:
+        11,
+
+      paddingRight:
+        5,
     },
 
     expenseCategory: {
-      fontSize: 12.5,
-      fontWeight: '700',
+      fontSize:
+        12.5,
 
-      color: '#183F60',
+      fontWeight:
+        '700',
+
+      color:
+        '#183F60',
     },
 
     expensePurpose: {
-      marginTop: 2,
+      marginTop:
+        2,
 
-      fontSize: 10.5,
+      fontSize:
+        10.5,
 
-      color: '#668095',
+      color:
+        '#668095',
     },
 
     expenseDate: {
-      marginTop: 3,
+      marginTop:
+        3,
 
-      fontSize: 9.5,
+      fontSize:
+        9.5,
 
-      color: '#94A6B4',
+      color:
+        '#94A6B4',
     },
 
     expenseRight: {
-      alignItems: 'flex-end',
-    },
-
-    expenseAmount: {
-      marginBottom: 6,
-
-      fontSize: 12.5,
-      fontWeight: '700',
-
-      color: '#173D5D',
+      alignItems:
+        'flex-end',
     },
 
     statusChip: {
-      paddingHorizontal: 8,
-      paddingVertical: 4,
+      paddingHorizontal:
+        8,
 
-      borderRadius: 12,
+      paddingVertical:
+        4,
+
+      borderRadius:
+        12,
     },
 
     statusChipText: {
-      fontSize: 8.5,
-      fontWeight: '700',
+      fontSize:
+        8.5,
+
+      fontWeight:
+        '700',
     },
 
     bottomNav: {
-      position: 'absolute',
+      position:
+        'absolute',
 
-      left: 0,
-      right: 0,
-      bottom: 0,
+      left:
+        0,
 
-      height: 82,
+      right:
+        0,
 
-      paddingHorizontal: 30,
+      bottom:
+        0,
 
-      flexDirection: 'row',
-      alignItems: 'center',
+      height:
+        82,
+
+      paddingHorizontal:
+        30,
+
+      flexDirection:
+        'row',
+
+      alignItems:
+        'center',
+
       justifyContent:
         'space-around',
 
-      borderTopWidth: 1,
-      borderTopColor: '#E8EEF3',
+      borderTopWidth:
+        1,
 
-      backgroundColor: '#FFFFFF',
+      borderTopColor:
+        '#E8EEF3',
+
+      backgroundColor:
+        '#FFFFFF',
     },
 
     navItem: {
-      minWidth: 82,
+      minWidth:
+        82,
 
-      alignItems: 'center',
-      justifyContent: 'center',
+      alignItems:
+        'center',
+
+      justifyContent:
+        'center',
     },
 
     navActive: {
-      marginTop: 4,
+      marginTop:
+        4,
 
-      fontSize: 10,
-      fontWeight: '700',
+      fontSize:
+        10,
 
-      color: '#0868AE',
+      fontWeight:
+        '700',
+
+      color:
+        '#0868AE',
     },
 
     navInactive: {
-      marginTop: 4,
+      marginTop:
+        4,
 
-      fontSize: 10,
-      fontWeight: '600',
+      fontSize:
+        10,
 
-      color: '#8DA2B3',
+      fontWeight:
+        '600',
+
+      color:
+        '#8DA2B3',
     },
 
     mainCameraButton: {
-      width: 64,
-      height: 64,
+      width:
+        64,
 
-      marginTop: -38,
+      height:
+        64,
 
-      borderRadius: 32,
+      marginTop:
+        -38,
 
-      alignItems: 'center',
-      justifyContent: 'center',
+      borderRadius:
+        32,
 
-      backgroundColor: '#0868AE',
+      alignItems:
+        'center',
 
-      borderWidth: 5,
-      borderColor: '#FFFFFF',
+      justifyContent:
+        'center',
 
-      elevation: 6,
+      backgroundColor:
+        '#0868AE',
 
-      shadowColor: '#073C64',
-      shadowOpacity: 0.2,
-      shadowRadius: 10,
+      borderWidth:
+        5,
+
+      borderColor:
+        '#FFFFFF',
+
+      elevation:
+        6,
+
+      shadowColor:
+        '#073C64',
+
+      shadowOpacity:
+        0.2,
+
+      shadowRadius:
+        10,
     },
   });

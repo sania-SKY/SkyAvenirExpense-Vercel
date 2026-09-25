@@ -1,115 +1,233 @@
-import { useState } from 'react';
-
-import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
+import {
+  useState,
+} from 'react';
 
 import {
-    Alert,
-    Image,
-    KeyboardAvoidingView,
-    Modal,
-    Platform,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    View,
+  Ionicons,
+} from '@expo/vector-icons';
+
+import {
+  router,
+} from 'expo-router';
+
+import {
+  File,
+} from 'expo-file-system';
+
+import {
+  fetch as expoFetch,
+} from 'expo/fetch';
+
+import {
+  Alert,
+  Image,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
 } from 'react-native';
 
-import { useReceipt } from '../../context/ReceiptContext';
+import {
+  useReceipt,
+} from '../../context/ReceiptContext';
 
-import { businessPurposes } from '../../../data/businessPurposes';
-import { categories } from '../../../data/categories';
+import {
+  businessPurposes,
+} from '../../../data/businessPurposes';
+
+import {
+  categories,
+} from '../../../data/categories';
+
+import {
+  authenticatedFetch,
+  getAccessToken,
+} from '../../../services/auth';
 
 type SelectorType =
   | 'category'
   | 'purpose'
   | null;
 
+type ExpenseResponse = {
+  expense?: {
+    id: string;
+    user_id: string;
+    category: string;
+    business_purpose: string;
+    comments: string | null;
+    receipt_storage_key: string | null;
+    status: string;
+
+    external_reference?:
+      string | null;
+
+    external_status?:
+      string | null;
+
+    external_error?:
+      string | null;
+
+    last_sync_at?:
+      string | null;
+
+    submitted_at: string;
+    created_at: string;
+    updated_at: string;
+
+    attendees?: string[];
+  };
+
+  message?: string;
+
+  errors?: unknown;
+};
+
+type UploadResponse = {
+  storageKey?: string;
+
+  originalName?: string;
+
+  mimeType?: string;
+
+  size?: number;
+
+  message?: string;
+};
+
+const API_BASE_URL =
+  process.env.EXPO_PUBLIC_API_URL;
+
 export default function SubmitExpenseScreen() {
-  const { receipt } = useReceipt();
+  const {
+    receipt,
+    clearReceipt,
+  } = useReceipt();
 
-  const [category, setCategory] =
-    useState('');
+  const [
+    category,
+    setCategory,
+  ] = useState('');
 
-  const [businessPurpose, setBusinessPurpose] =
-    useState('');
+  const [
+    businessPurpose,
+    setBusinessPurpose,
+  ] = useState('');
 
-  const [comments, setComments] =
-    useState('');
+  const [
+    comments,
+    setComments,
+  ] = useState('');
 
-  const [attendees, setAttendees] =
-    useState<string[]>(['']);
+  const [
+    attendees,
+    setAttendees,
+  ] = useState<string[]>(
+    [''],
+  );
 
-  const [selectorType, setSelectorType] =
-    useState<SelectorType>(null);
+  const [
+    selectorType,
+    setSelectorType,
+  ] = useState<SelectorType>(
+    null,
+  );
 
-  const [isSubmitting, setIsSubmitting] =
-    useState(false);
+  const [
+    isSubmitting,
+    setIsSubmitting,
+  ] = useState(false);
 
   const requiresAttendees =
     category ===
     'Travel - Meals and Entertainment with Attendees';
 
   const selectorOptions =
-    selectorType === 'category'
+    selectorType ===
+    'category'
       ? categories
       : businessPurposes;
 
   function selectOption(
     value: string,
   ) {
-    if (selectorType === 'category') {
-      setCategory(value);
+    if (
+      selectorType ===
+      'category'
+    ) {
+      setCategory(
+        value,
+      );
     }
 
-    if (selectorType === 'purpose') {
-      setBusinessPurpose(value);
+    if (
+      selectorType ===
+      'purpose'
+    ) {
+      setBusinessPurpose(
+        value,
+      );
     }
 
-    setSelectorType(null);
+    setSelectorType(
+      null,
+    );
   }
 
   function updateAttendee(
     index: number,
     value: string,
   ) {
-    setAttendees((current) =>
-      current.map(
-        (
-          attendee,
-          attendeeIndex,
-        ) =>
-          attendeeIndex === index
-            ? value
-            : attendee,
-      ),
+    setAttendees(
+      (current) =>
+        current.map(
+          (
+            attendee,
+            attendeeIndex,
+          ) =>
+            attendeeIndex ===
+            index
+              ? value
+              : attendee,
+        ),
     );
   }
 
   function addAttendee() {
-    setAttendees((current) => [
-      ...current,
-      '',
-    ]);
+    setAttendees(
+      (current) => [
+        ...current,
+        '',
+      ],
+    );
   }
 
   function removeAttendee(
     index: number,
   ) {
-    setAttendees((current) => {
-      const next =
-        current.filter(
-          (_, attendeeIndex) =>
-            attendeeIndex !== index,
-        );
+    setAttendees(
+      (current) => {
+        const next =
+          current.filter(
+            (
+              _,
+              attendeeIndex,
+            ) =>
+              attendeeIndex !==
+              index,
+          );
 
-      return next.length
-        ? next
-        : [''];
-    });
+        return next.length
+          ? next
+          : [''];
+      },
+    );
   }
 
   function validateExpense() {
@@ -131,15 +249,21 @@ export default function SubmitExpenseScreen() {
       return false;
     }
 
-    if (requiresAttendees) {
+    if (
+      requiresAttendees
+    ) {
       const validAttendees =
         attendees.filter(
           (name) =>
-            name.trim().length > 0,
+            name
+              .trim()
+              .length >
+            0,
         );
 
       if (
-        validAttendees.length === 0
+        validAttendees.length ===
+        0
       ) {
         Alert.alert(
           'Attendee required',
@@ -153,8 +277,38 @@ export default function SubmitExpenseScreen() {
     return true;
   }
 
+  /*
+   * ------------------------------------------------
+   * SUBMIT EXPENSE
+   * ------------------------------------------------
+   *
+   * STEP 1:
+   * Upload actual receipt file.
+   *
+   * STEP 2:
+   * Backend returns receipt storage key.
+   *
+   * STEP 3:
+   * Create expense record in PostgreSQL.
+   *
+   * STEP 4:
+   * Backend queues integration job.
+   *
+   * STEP 5:
+   * Show Success only after backend confirms.
+   * ------------------------------------------------
+   */
+
   async function submitExpense() {
-    if (!validateExpense()) {
+    if (
+      isSubmitting
+    ) {
+      return;
+    }
+
+    if (
+      !validateExpense()
+    ) {
       return;
     }
 
@@ -167,45 +321,277 @@ export default function SubmitExpenseScreen() {
       return;
     }
 
+    if (!API_BASE_URL) {
+      Alert.alert(
+        'Configuration Error',
+        'The API URL is not configured.',
+      );
+
+      return;
+    }
+
+    const accessToken =
+      getAccessToken();
+
+    if (!accessToken) {
+      Alert.alert(
+        'Sign In Required',
+        'Your session is unavailable. Please sign in again.',
+      );
+
+      return;
+    }
+
     try {
-      setIsSubmitting(true);
+      setIsSubmitting(
+        true,
+      );
 
-      const expenseData = {
-        receiptUri:
+      /*
+       * ------------------------------------------------
+       * STEP 1
+       * PREPARE ACTUAL RECEIPT FILE
+       * ------------------------------------------------
+       *
+       * Expo SDK uses its File implementation
+       * with expo/fetch for multipart FormData.
+       */
+
+      const receiptFile =
+        new File(
           receipt.uri,
+        );
 
-        category,
+      if (
+        !receiptFile.exists
+      ) {
+        throw new Error(
+          'The receipt file could not be found on this device.',
+        );
+      }
 
-        businessPurpose,
+      const formData =
+        new FormData();
 
-        comments:
-          comments.trim(),
+      formData.append(
+        'receipt',
+        receiptFile,
+      );
 
-        attendees:
-          requiresAttendees
-            ? attendees
-                .map(
-                  (name) =>
-                    name.trim(),
-                )
-                .filter(Boolean)
-            : [],
-      };
+      /*
+       * ------------------------------------------------
+       * STEP 2
+       * UPLOAD RECEIPT
+       * ------------------------------------------------
+       *
+       * IMPORTANT:
+       * Do NOT manually set Content-Type.
+       * expo/fetch creates the multipart boundary.
+       */
 
       console.log(
-        'Expense ready for backend:',
-        expenseData,
+        '[Expense] Uploading receipt...',
       );
 
-      await new Promise(
-        (resolve) =>
-          setTimeout(
-            resolve,
-            650,
-          ),
+      const uploadResponse =
+        await expoFetch(
+          `${API_BASE_URL}/api/expenses/upload`,
+          {
+            method:
+              'POST',
+
+            headers: {
+              Authorization:
+                `Bearer ${accessToken}`,
+            },
+
+            body:
+              formData,
+          },
+        );
+
+      let uploadData:
+        UploadResponse;
+
+      try {
+        uploadData =
+          await uploadResponse.json();
+      } catch {
+        throw new Error(
+          'The receipt upload server returned an invalid response.',
+        );
+      }
+
+      if (
+        !uploadResponse.ok
+      ) {
+        console.error(
+          'Receipt upload failed:',
+          {
+            status:
+              uploadResponse.status,
+
+            message:
+              uploadData.message,
+          },
+        );
+
+        throw new Error(
+          uploadData.message ??
+            `Receipt upload failed (${uploadResponse.status}).`,
+        );
+      }
+
+      const receiptStorageKey =
+        uploadData.storageKey;
+
+      if (
+        !receiptStorageKey
+      ) {
+        throw new Error(
+          'The server did not return a receipt storage key.',
+        );
+      }
+
+      console.log(
+        '[Expense] Receipt uploaded:',
+        receiptStorageKey,
       );
 
-      router.push(
+      /*
+       * ------------------------------------------------
+       * STEP 3
+       * CLEAN ATTENDEES
+       * ------------------------------------------------
+       */
+
+      const cleanedAttendees =
+        requiresAttendees
+          ? attendees
+              .map(
+                (name) =>
+                  name.trim(),
+              )
+              .filter(
+                Boolean,
+              )
+          : [];
+
+      /*
+       * ------------------------------------------------
+       * STEP 4
+       * CREATE DATABASE EXPENSE
+       * ------------------------------------------------
+       */
+
+      console.log(
+        '[Expense] Creating database record...',
+      );
+
+      const response =
+        await authenticatedFetch(
+          '/api/expenses',
+          {
+            method:
+              'POST',
+
+            body:
+              JSON.stringify({
+                category,
+
+                businessPurpose,
+
+                comments:
+                  comments
+                    .trim() ||
+                  null,
+
+                receiptStorageKey,
+
+                attendees:
+                  cleanedAttendees,
+              }),
+          },
+        );
+
+      let data:
+        ExpenseResponse;
+
+      try {
+        data =
+          await response.json();
+      } catch {
+        throw new Error(
+          'The server returned an invalid expense response.',
+        );
+      }
+
+      if (
+        !response.ok
+      ) {
+        console.error(
+          'Expense backend error:',
+          {
+            status:
+              response.status,
+
+            message:
+              data.message,
+
+            errors:
+              data.errors,
+          },
+        );
+
+        throw new Error(
+          data.message ??
+            `Unable to create expense (${response.status}).`,
+        );
+      }
+
+      if (
+        !data.expense?.id
+      ) {
+        throw new Error(
+          'The backend did not confirm the expense.',
+        );
+      }
+
+      console.log(
+        '[Expense] Successfully stored:',
+        {
+          id:
+            data.expense.id,
+
+          status:
+            data.expense.status,
+
+          category:
+            data.expense.category,
+
+          receiptStorageKey:
+            data.expense
+              .receipt_storage_key,
+        },
+      );
+
+      /*
+       * ------------------------------------------------
+       * STEP 5
+       * CLEAR LOCAL RECEIPT ONLY AFTER SUCCESS
+       * ------------------------------------------------
+       */
+
+      clearReceipt();
+
+      /*
+       * ------------------------------------------------
+       * STEP 6
+       * SUCCESS SCREEN
+       * ------------------------------------------------
+       */
+
+      router.replace(
         '/expense/success',
       );
     } catch (error) {
@@ -216,17 +602,41 @@ export default function SubmitExpenseScreen() {
 
       Alert.alert(
         'Unable to submit expense',
-        'Please try again.',
+
+        error instanceof Error
+          ? error.message
+          : 'Please try again.',
       );
     } finally {
-      setIsSubmitting(false);
+      setIsSubmitting(
+        false,
+      );
     }
   }
 
+  /*
+   * ------------------------------------------------
+   * NO RECEIPT
+   * ------------------------------------------------
+   */
+
   if (!receipt) {
     return (
-      <View style={styles.emptyScreen}>
-        <View style={styles.emptyIcon}>
+      <View
+        style={
+          styles.emptyScreen
+        }
+      >
+        <StatusBar
+          barStyle="dark-content"
+          backgroundColor="#F4F8FB"
+        />
+
+        <View
+          style={
+            styles.emptyIcon
+          }
+        >
           <Ionicons
             name="receipt-outline"
             size={34}
@@ -234,16 +644,27 @@ export default function SubmitExpenseScreen() {
           />
         </View>
 
-        <Text style={styles.emptyTitle}>
+        <Text
+          style={
+            styles.emptyTitle
+          }
+        >
           Receipt unavailable
         </Text>
 
-        <Text style={styles.emptySubtitle}>
-          Capture or upload a receipt to continue.
+        <Text
+          style={
+            styles.emptySubtitle
+          }
+        >
+          Capture or upload a
+          receipt to continue.
         </Text>
 
         <Pressable
-          style={styles.captureAgainButton}
+          style={
+            styles.captureAgainButton
+          }
           onPress={() =>
             router.replace(
               '/expense/capture',
@@ -264,26 +685,38 @@ export default function SubmitExpenseScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={
+        styles.container
+      }
       behavior={
-        Platform.OS === 'ios'
+        Platform.OS ===
+        'ios'
           ? 'padding'
           : undefined
       }
     >
       <StatusBar
-        style="dark"
+        barStyle="dark-content"
         backgroundColor="#FFFFFF"
       />
 
       {/* HEADER */}
 
-      <View style={styles.header}>
+      <View
+        style={
+          styles.header
+        }
+      >
         <Pressable
+          disabled={
+            isSubmitting
+          }
           onPress={() =>
             router.back()
           }
-          style={styles.headerButton}
+          style={
+            styles.headerButton
+          }
         >
           <Ionicons
             name="chevron-back"
@@ -292,51 +725,97 @@ export default function SubmitExpenseScreen() {
           />
         </Pressable>
 
-        <View style={styles.headerText}>
-          <Text style={styles.headerTitle}>
+        <View
+          style={
+            styles.headerText
+          }
+        >
+          <Text
+            style={
+              styles.headerTitle
+            }
+          >
             Expense Details
           </Text>
 
-          <Text style={styles.headerSubtitle}>
-            Review before submitting
+          <Text
+            style={
+              styles.headerSubtitle
+            }
+          >
+            Review before
+            submitting
           </Text>
         </View>
 
-        <View style={styles.headerSpacer} />
+        <View
+          style={
+            styles.headerSpacer
+          }
+        />
       </View>
 
       <ScrollView
-        showsVerticalScrollIndicator={false}
+        showsVerticalScrollIndicator={
+          false
+        }
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={
           styles.scrollContent
         }
       >
-        {/* RECEIPT CARD */}
+        {/* RECEIPT */}
 
-        <View style={styles.receiptCard}>
-          <View style={styles.receiptImageWrap}>
+        <View
+          style={
+            styles.receiptCard
+          }
+        >
+          <View
+            style={
+              styles.receiptImageWrap
+            }
+          >
             <Image
               source={{
-                uri: receipt.uri,
+                uri:
+                  receipt.uri,
               }}
-              style={styles.receiptImage}
+              style={
+                styles.receiptImage
+              }
               resizeMode="contain"
             />
           </View>
 
-          <View style={styles.receiptMeta}>
+          <View
+            style={
+              styles.receiptMeta
+            }
+          >
             <View>
-              <Text style={styles.receiptLabel}>
+              <Text
+                style={
+                  styles.receiptLabel
+                }
+              >
                 Receipt attached
               </Text>
 
-              <Text style={styles.receiptHint}>
-                Ready for expense details
+              <Text
+                style={
+                  styles.receiptHint
+                }
+              >
+                Ready for expense
+                details
               </Text>
             </View>
 
             <Pressable
+              disabled={
+                isSubmitting
+              }
               onPress={() =>
                 router.back()
               }
@@ -361,10 +840,18 @@ export default function SubmitExpenseScreen() {
           </View>
         </View>
 
-        {/* DETAILS CARD */}
+        {/* EXPENSE FORM */}
 
-        <View style={styles.formCard}>
-          <Text style={styles.sectionEyebrow}>
+        <View
+          style={
+            styles.formCard
+          }
+        >
+          <Text
+            style={
+              styles.sectionEyebrow
+            }
+          >
             EXPENSE INFORMATION
           </Text>
 
@@ -375,8 +862,13 @@ export default function SubmitExpenseScreen() {
 
           <Selector
             icon="grid-outline"
-            value={category}
+            value={
+              category
+            }
             placeholder="Select category"
+            disabled={
+              isSubmitting
+            }
             onPress={() =>
               setSelectorType(
                 'category',
@@ -391,8 +883,13 @@ export default function SubmitExpenseScreen() {
 
           <Selector
             icon="briefcase-outline"
-            value={businessPurpose}
+            value={
+              businessPurpose
+            }
             placeholder="Select business purpose"
+            disabled={
+              isSubmitting
+            }
             onPress={() =>
               setSelectorType(
                 'purpose',
@@ -427,7 +924,9 @@ export default function SubmitExpenseScreen() {
                   index,
                 ) => (
                   <View
-                    key={index}
+                    key={
+                      index
+                    }
                     style={
                       styles.attendeeRow
                     }
@@ -444,6 +943,9 @@ export default function SubmitExpenseScreen() {
                       />
 
                       <TextInput
+                        editable={
+                          !isSubmitting
+                        }
                         value={
                           attendee
                         }
@@ -466,6 +968,9 @@ export default function SubmitExpenseScreen() {
                     {attendees.length >
                       1 && (
                       <Pressable
+                        disabled={
+                          isSubmitting
+                        }
                         onPress={() =>
                           removeAttendee(
                             index,
@@ -487,7 +992,12 @@ export default function SubmitExpenseScreen() {
               )}
 
               <Pressable
-                onPress={addAttendee}
+                disabled={
+                  isSubmitting
+                }
+                onPress={
+                  addAttendee
+                }
                 style={
                   styles.addAttendeeButton
                 }
@@ -503,7 +1013,8 @@ export default function SubmitExpenseScreen() {
                     styles.addAttendeeText
                   }
                 >
-                  Add another attendee
+                  Add another
+                  attendee
                 </Text>
               </Pressable>
             </View>
@@ -519,7 +1030,12 @@ export default function SubmitExpenseScreen() {
             }
           >
             <TextInput
-              value={comments}
+              editable={
+                !isSubmitting
+              }
+              value={
+                comments
+              }
               onChangeText={
                 setComments
               }
@@ -546,14 +1062,24 @@ export default function SubmitExpenseScreen() {
               styles.commentsHelp
             }
           >
-            Optional — only add information that helps explain the expense.
+            Optional — only add
+            information that helps
+            explain the expense.
           </Text>
         </View>
 
         {/* REVIEW CARD */}
 
-        <View style={styles.reviewCard}>
-          <View style={styles.reviewIcon}>
+        <View
+          style={
+            styles.reviewCard
+          }
+        >
+          <View
+            style={
+              styles.reviewIcon
+            }
+          >
             <Ionicons
               name="shield-checkmark-outline"
               size={22}
@@ -561,8 +1087,16 @@ export default function SubmitExpenseScreen() {
             />
           </View>
 
-          <View style={styles.reviewText}>
-            <Text style={styles.reviewTitle}>
+          <View
+            style={
+              styles.reviewText
+            }
+          >
+            <Text
+              style={
+                styles.reviewTitle
+              }
+            >
               Ready to submit
             </Text>
 
@@ -571,18 +1105,28 @@ export default function SubmitExpenseScreen() {
                 styles.reviewDescription
               }
             >
-              Your receipt and details will be validated before they are stored.
+              Your receipt will be
+              uploaded securely and
+              linked to this expense.
             </Text>
           </View>
         </View>
       </ScrollView>
 
-      {/* BOTTOM ACTION */}
+      {/* BOTTOM */}
 
-      <View style={styles.bottomBar}>
+      <View
+        style={
+          styles.bottomBar
+        }
+      >
         <Pressable
-          disabled={isSubmitting}
-          onPress={submitExpense}
+          disabled={
+            isSubmitting
+          }
+          onPress={
+            submitExpense
+          }
           style={[
             styles.submitButton,
 
@@ -614,12 +1158,16 @@ export default function SubmitExpenseScreen() {
 
       <Modal
         visible={
-          selectorType !== null
+          selectorType !==
+            null &&
+          !isSubmitting
         }
         transparent
         animationType="fade"
         onRequestClose={() =>
-          setSelectorType(null)
+          setSelectorType(
+            null,
+          )
         }
       >
         <Pressable
@@ -627,7 +1175,9 @@ export default function SubmitExpenseScreen() {
             styles.modalBackdrop
           }
           onPress={() =>
-            setSelectorType(null)
+            setSelectorType(
+              null,
+            )
           }
         >
           <Pressable
@@ -695,7 +1245,9 @@ export default function SubmitExpenseScreen() {
               }
             >
               {selectorOptions.map(
-                (option) => {
+                (
+                  option,
+                ) => {
                   const selected =
                     selectorType ===
                     'category'
@@ -706,7 +1258,9 @@ export default function SubmitExpenseScreen() {
 
                   return (
                     <Pressable
-                      key={option}
+                      key={
+                        option
+                      }
                       onPress={() =>
                         selectOption(
                           option,
@@ -750,8 +1304,11 @@ export default function SubmitExpenseScreen() {
 }
 
 type FieldLabelProps = {
-  label: string;
-  required?: boolean;
+  label:
+    string;
+
+  required?:
+    boolean;
 };
 
 function FieldLabel({
@@ -759,11 +1316,19 @@ function FieldLabel({
   required = false,
 }: FieldLabelProps) {
   return (
-    <Text style={styles.fieldLabel}>
+    <Text
+      style={
+        styles.fieldLabel
+      }
+    >
       {label}
 
       {required && (
-        <Text style={styles.required}>
+        <Text
+          style={
+            styles.required
+          }
+        >
           {' '}*
         </Text>
       )}
@@ -774,9 +1339,18 @@ function FieldLabel({
 type SelectorProps = {
   icon:
     keyof typeof Ionicons.glyphMap;
-  value: string;
-  placeholder: string;
-  onPress: () => void;
+
+  value:
+    string;
+
+  placeholder:
+    string;
+
+  onPress:
+    () => void;
+
+  disabled?:
+    boolean;
 };
 
 function Selector({
@@ -784,18 +1358,34 @@ function Selector({
   value,
   placeholder,
   onPress,
+  disabled = false,
 }: SelectorProps) {
   return (
     <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [
+      disabled={
+        disabled
+      }
+      onPress={
+        onPress
+      }
+      style={({
+        pressed,
+      }) => [
         styles.selector,
 
         pressed &&
+          !disabled &&
           styles.selectorPressed,
+
+        disabled &&
+          styles.selectorDisabled,
       ]}
     >
-      <View style={styles.selectorIcon}>
+      <View
+        style={
+          styles.selectorIcon
+        }
+      >
         <Ionicons
           name={icon}
           size={20}
@@ -812,7 +1402,8 @@ function Selector({
             styles.selectorPlaceholder,
         ]}
       >
-        {value || placeholder}
+        {value ||
+          placeholder}
       </Text>
 
       <Ionicons
@@ -824,591 +1415,957 @@ function Selector({
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F4F8FB',
-  },
+const styles =
+  StyleSheet.create({
+    container: {
+      flex:
+        1,
 
-  header: {
-    paddingTop: 50,
-    paddingHorizontal: 18,
-    paddingBottom: 15,
+      backgroundColor:
+        '#F4F8FB',
+    },
 
-    flexDirection: 'row',
-    alignItems: 'center',
+    header: {
+      paddingTop:
+        50,
 
-    borderBottomWidth: 1,
-    borderBottomColor: '#E8EEF3',
+      paddingHorizontal:
+        18,
 
-    backgroundColor: '#FFFFFF',
-  },
+      paddingBottom:
+        15,
 
-  headerButton: {
-    width: 44,
-    height: 44,
+      flexDirection:
+        'row',
 
-    borderRadius: 22,
+      alignItems:
+        'center',
 
-    alignItems: 'center',
-    justifyContent: 'center',
+      borderBottomWidth:
+        1,
 
-    backgroundColor: '#EFF5F9',
-  },
+      borderBottomColor:
+        '#E8EEF3',
 
-  headerText: {
-    flex: 1,
-    alignItems: 'center',
-  },
+      backgroundColor:
+        '#FFFFFF',
+    },
 
-  headerTitle: {
-    fontSize: 18.5,
-    fontWeight: '700',
-    color: '#0A3558',
-  },
+    headerButton: {
+      width:
+        44,
 
-  headerSubtitle: {
-    marginTop: 2,
-    fontSize: 10.5,
-    color: '#8498A8',
-  },
+      height:
+        44,
 
-  headerSpacer: {
-    width: 44,
-  },
+      borderRadius:
+        22,
 
-  scrollContent: {
-    paddingHorizontal: 18,
-    paddingTop: 18,
-    paddingBottom: 125,
-  },
+      alignItems:
+        'center',
 
-  receiptCard: {
-    padding: 14,
+      justifyContent:
+        'center',
 
-    borderRadius: 22,
+      backgroundColor:
+        '#EFF5F9',
+    },
 
-    backgroundColor: '#FFFFFF',
+    headerText: {
+      flex:
+        1,
 
-    elevation: 2,
-  },
+      alignItems:
+        'center',
+    },
 
-  receiptImageWrap: {
-    height: 230,
+    headerTitle: {
+      fontSize:
+        18.5,
 
-    overflow: 'hidden',
+      fontWeight:
+        '700',
 
-    borderRadius: 17,
+      color:
+        '#0A3558',
+    },
 
-    backgroundColor: '#EDF3F7',
-  },
+    headerSubtitle: {
+      marginTop:
+        2,
 
-  receiptImage: {
-    width: '100%',
-    height: '100%',
-  },
+      fontSize:
+        10.5,
 
-  receiptMeta: {
-    marginTop: 13,
+      color:
+        '#8498A8',
+    },
 
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
+    headerSpacer: {
+      width:
+        44,
+    },
 
-  receiptLabel: {
-    fontSize: 13.5,
-    fontWeight: '700',
-    color: '#173F60',
-  },
+    scrollContent: {
+      paddingHorizontal:
+        18,
 
-  receiptHint: {
-    marginTop: 2,
-    fontSize: 10.5,
-    color: '#899CAB',
-  },
+      paddingTop:
+        18,
 
-  editReceiptButton: {
-    paddingHorizontal: 13,
-    paddingVertical: 8,
+      paddingBottom:
+        125,
+    },
 
-    flexDirection: 'row',
-    alignItems: 'center',
+    receiptCard: {
+      padding:
+        14,
 
-    gap: 5,
+      borderRadius:
+        22,
 
-    borderRadius: 16,
+      backgroundColor:
+        '#FFFFFF',
 
-    backgroundColor: '#E7F2FA',
-  },
+      elevation:
+        2,
+    },
 
-  editReceiptText: {
-    fontSize: 11.5,
-    fontWeight: '700',
-    color: '#075A98',
-  },
+    receiptImageWrap: {
+      height:
+        230,
 
-  formCard: {
-    marginTop: 16,
+      overflow:
+        'hidden',
 
-    padding: 17,
+      borderRadius:
+        17,
 
-    borderRadius: 22,
+      backgroundColor:
+        '#EDF3F7',
+    },
 
-    backgroundColor: '#FFFFFF',
-  },
+    receiptImage: {
+      width:
+        '100%',
 
-  sectionEyebrow: {
-    marginBottom: 5,
+      height:
+        '100%',
+    },
 
-    fontSize: 8.5,
-    fontWeight: '700',
+    receiptMeta: {
+      marginTop:
+        13,
 
-    letterSpacing: 2,
+      flexDirection:
+        'row',
 
-    color: '#8BA0B0',
-  },
+      alignItems:
+        'center',
 
-  fieldLabel: {
-    marginTop: 17,
-    marginBottom: 8,
+      justifyContent:
+        'space-between',
+    },
 
-    fontSize: 13.5,
-    fontWeight: '700',
-    color: '#173F60',
-  },
+    receiptLabel: {
+      fontSize:
+        13.5,
 
-  required: {
-    color: '#C53A35',
-  },
+      fontWeight:
+        '700',
 
-  selector: {
-    height: 58,
+      color:
+        '#173F60',
+    },
 
-    paddingHorizontal: 12,
+    receiptHint: {
+      marginTop:
+        2,
 
-    flexDirection: 'row',
-    alignItems: 'center',
+      fontSize:
+        10.5,
 
-    borderWidth: 1,
-    borderColor: '#D4E2EB',
+      color:
+        '#899CAB',
+    },
 
-    borderRadius: 16,
+    editReceiptButton: {
+      paddingHorizontal:
+        13,
 
-    backgroundColor: '#FBFDFE',
-  },
+      paddingVertical:
+        8,
 
-  selectorPressed: {
-    backgroundColor: '#F5F9FC',
-  },
+      flexDirection:
+        'row',
 
-  selectorIcon: {
-    width: 38,
-    height: 38,
+      alignItems:
+        'center',
 
-    marginRight: 10,
+      gap:
+        5,
 
-    borderRadius: 12,
+      borderRadius:
+        16,
 
-    alignItems: 'center',
-    justifyContent: 'center',
+      backgroundColor:
+        '#E7F2FA',
+    },
 
-    backgroundColor: '#E7F2FA',
-  },
+    editReceiptText: {
+      fontSize:
+        11.5,
 
-  selectorText: {
-    flex: 1,
+      fontWeight:
+        '700',
 
-    fontSize: 13.5,
-    fontWeight: '600',
+      color:
+        '#075A98',
+    },
 
-    color: '#173F60',
-  },
+    formCard: {
+      marginTop:
+        16,
 
-  selectorPlaceholder: {
-    fontWeight: '400',
-    color: '#8CA0AF',
-  },
+      padding:
+        17,
 
-  attendeeHeadingRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
-  },
+      borderRadius:
+        22,
 
-  attendeeHint: {
-    marginBottom: 8,
+      backgroundColor:
+        '#FFFFFF',
+    },
 
-    fontSize: 10.5,
-    fontWeight: '600',
+    sectionEyebrow: {
+      marginBottom:
+        5,
 
-    color: '#B23B34',
-  },
+      fontSize:
+        8.5,
 
-  attendeeRow: {
-    flexDirection: 'row',
+      fontWeight:
+        '700',
 
-    gap: 8,
+      letterSpacing:
+        2,
 
-    marginBottom: 9,
-  },
+      color:
+        '#8BA0B0',
+    },
 
-  attendeeInputContainer: {
-    flex: 1,
-    height: 54,
+    fieldLabel: {
+      marginTop:
+        17,
 
-    paddingHorizontal: 13,
+      marginBottom:
+        8,
 
-    flexDirection: 'row',
-    alignItems: 'center',
+      fontSize:
+        13.5,
 
-    gap: 8,
+      fontWeight:
+        '700',
 
-    borderWidth: 1,
-    borderColor: '#D4E2EB',
+      color:
+        '#173F60',
+    },
 
-    borderRadius: 15,
+    required: {
+      color:
+        '#C53A35',
+    },
 
-    backgroundColor: '#FBFDFE',
-  },
+    selector: {
+      height:
+        58,
 
-  attendeeInput: {
-    flex: 1,
+      paddingHorizontal:
+        12,
 
-    fontSize: 13.5,
-    color: '#173F60',
-  },
+      flexDirection:
+        'row',
 
-  removeAttendee: {
-    width: 45,
-    height: 54,
+      alignItems:
+        'center',
 
-    borderRadius: 15,
+      borderWidth:
+        1,
 
-    alignItems: 'center',
-    justifyContent: 'center',
+      borderColor:
+        '#D4E2EB',
 
-    backgroundColor: '#FDECEA',
-  },
+      borderRadius:
+        16,
 
-  addAttendeeButton: {
-    alignSelf: 'flex-start',
+      backgroundColor:
+        '#FBFDFE',
+    },
 
-    marginTop: 1,
+    selectorPressed: {
+      backgroundColor:
+        '#F5F9FC',
+    },
 
-    paddingVertical: 8,
+    selectorDisabled: {
+      opacity:
+        0.6,
+    },
 
-    flexDirection: 'row',
-    alignItems: 'center',
+    selectorIcon: {
+      width:
+        38,
 
-    gap: 6,
-  },
+      height:
+        38,
 
-  addAttendeeText: {
-    fontSize: 12,
-    fontWeight: '700',
+      marginRight:
+        10,
 
-    color: '#0868AE',
-  },
+      borderRadius:
+        12,
 
-  commentsContainer: {
-    minHeight: 108,
+      alignItems:
+        'center',
 
-    paddingHorizontal: 13,
-    paddingTop: 11,
-    paddingBottom: 8,
+      justifyContent:
+        'center',
 
-    borderWidth: 1,
-    borderColor: '#D4E2EB',
+      backgroundColor:
+        '#E7F2FA',
+    },
 
-    borderRadius: 16,
+    selectorText: {
+      flex:
+        1,
 
-    backgroundColor: '#FBFDFE',
-  },
+      fontSize:
+        13.5,
 
-  commentsInput: {
-    minHeight: 66,
+      fontWeight:
+        '600',
 
-    fontSize: 13.5,
-    lineHeight: 19,
+      color:
+        '#173F60',
+    },
 
-    color: '#173F60',
+    selectorPlaceholder: {
+      fontWeight:
+        '400',
 
-    textAlignVertical: 'top',
-  },
+      color:
+        '#8CA0AF',
+    },
 
-  characterCount: {
-    textAlign: 'right',
+    attendeeHeadingRow: {
+      flexDirection:
+        'row',
 
-    fontSize: 9.5,
+      alignItems:
+        'flex-end',
 
-    color: '#9AADBA',
-  },
+      justifyContent:
+        'space-between',
+    },
 
-  commentsHelp: {
-    marginTop: 7,
+    attendeeHint: {
+      marginBottom:
+        8,
 
-    fontSize: 10.5,
-    lineHeight: 15,
+      fontSize:
+        10.5,
 
-    color: '#879CAA',
-  },
+      fontWeight:
+        '600',
 
-  reviewCard: {
-    marginTop: 16,
+      color:
+        '#B23B34',
+    },
 
-    padding: 15,
+    attendeeRow: {
+      flexDirection:
+        'row',
 
-    flexDirection: 'row',
+      gap:
+        8,
 
-    gap: 11,
+      marginBottom:
+        9,
+    },
 
-    borderRadius: 19,
+    attendeeInputContainer: {
+      flex:
+        1,
 
-    backgroundColor: '#E8F3FA',
-  },
+      height:
+        54,
 
-  reviewIcon: {
-    width: 42,
-    height: 42,
+      paddingHorizontal:
+        13,
 
-    borderRadius: 13,
+      flexDirection:
+        'row',
 
-    alignItems: 'center',
-    justifyContent: 'center',
+      alignItems:
+        'center',
 
-    backgroundColor: '#D8EBF6',
-  },
+      gap:
+        8,
 
-  reviewText: {
-    flex: 1,
-  },
+      borderWidth:
+        1,
 
-  reviewTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#174966',
-  },
+      borderColor:
+        '#D4E2EB',
 
-  reviewDescription: {
-    marginTop: 3,
+      borderRadius:
+        15,
 
-    fontSize: 10.5,
-    lineHeight: 15,
+      backgroundColor:
+        '#FBFDFE',
+    },
 
-    color: '#5E7A8D',
-  },
+    attendeeInput: {
+      flex:
+        1,
 
-  bottomBar: {
-    position: 'absolute',
+      fontSize:
+        13.5,
 
-    left: 0,
-    right: 0,
-    bottom: 0,
+      color:
+        '#173F60',
+    },
 
-    paddingHorizontal: 18,
-    paddingTop: 12,
-    paddingBottom: 26,
+    removeAttendee: {
+      width:
+        45,
 
-    borderTopWidth: 1,
-    borderTopColor: '#E8EEF3',
+      height:
+        54,
 
-    backgroundColor: '#FFFFFF',
-  },
+      borderRadius:
+        15,
 
-  submitButton: {
-    height: 58,
+      alignItems:
+        'center',
 
-    borderRadius: 17,
+      justifyContent:
+        'center',
 
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+      backgroundColor:
+        '#FDECEA',
+    },
 
-    gap: 8,
+    addAttendeeButton: {
+      alignSelf:
+        'flex-start',
 
-    backgroundColor: '#0868AE',
-  },
+      marginTop:
+        1,
 
-  submitDisabled: {
-    opacity: 0.65,
-  },
+      paddingVertical:
+        8,
 
-  submitButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
+      flexDirection:
+        'row',
 
-  modalBackdrop: {
-    flex: 1,
+      alignItems:
+        'center',
 
-    justifyContent: 'flex-end',
+      gap:
+        6,
+    },
 
-    backgroundColor:
-      'rgba(5,26,43,0.42)',
-  },
+    addAttendeeText: {
+      fontSize:
+        12,
 
-  selectorSheet: {
-    maxHeight: '72%',
+      fontWeight:
+        '700',
 
-    paddingHorizontal: 18,
-    paddingTop: 10,
-    paddingBottom: 28,
+      color:
+        '#0868AE',
+    },
 
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    commentsContainer: {
+      minHeight:
+        108,
 
-    backgroundColor: '#FFFFFF',
-  },
+      paddingHorizontal:
+        13,
 
-  sheetHandle: {
-    width: 42,
-    height: 4,
+      paddingTop:
+        11,
 
-    alignSelf: 'center',
+      paddingBottom:
+        8,
 
-    marginBottom: 18,
+      borderWidth:
+        1,
 
-    borderRadius: 4,
+      borderColor:
+        '#D4E2EB',
 
-    backgroundColor: '#D4E0E8',
-  },
+      borderRadius:
+        16,
 
-  sheetHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+      backgroundColor:
+        '#FBFDFE',
+    },
 
-    marginBottom: 14,
-  },
+    commentsInput: {
+      minHeight:
+        66,
 
-  sheetTitle: {
-    fontSize: 19,
-    fontWeight: '700',
-    color: '#0A3558',
-  },
+      fontSize:
+        13.5,
 
-  sheetSubtitle: {
-    marginTop: 3,
+      lineHeight:
+        19,
 
-    fontSize: 11,
-    color: '#8498A8',
-  },
+      color:
+        '#173F60',
 
-  closeSheetButton: {
-    width: 40,
-    height: 40,
+      textAlignVertical:
+        'top',
+    },
 
-    borderRadius: 20,
+    characterCount: {
+      textAlign:
+        'right',
 
-    alignItems: 'center',
-    justifyContent: 'center',
+      fontSize:
+        9.5,
 
-    backgroundColor: '#EFF5F9',
-  },
+      color:
+        '#9AADBA',
+    },
 
-  optionsList: {
-    maxHeight: 430,
-  },
+    commentsHelp: {
+      marginTop:
+        7,
 
-  optionRow: {
-    minHeight: 52,
+      fontSize:
+        10.5,
 
-    paddingHorizontal: 14,
+      lineHeight:
+        15,
 
-    marginBottom: 6,
+      color:
+        '#879CAA',
+    },
 
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    reviewCard: {
+      marginTop:
+        16,
 
-    borderRadius: 14,
+      padding:
+        15,
 
-    backgroundColor: '#F7FAFC',
-  },
+      flexDirection:
+        'row',
 
-  optionRowSelected: {
-    borderWidth: 1,
-    borderColor: '#8DC6E8',
+      gap:
+        11,
 
-    backgroundColor: '#E8F4FB',
-  },
+      borderRadius:
+        19,
 
-  optionText: {
-    flex: 1,
+      backgroundColor:
+        '#E8F3FA',
+    },
 
-    paddingRight: 10,
+    reviewIcon: {
+      width:
+        42,
 
-    fontSize: 13,
-    color: '#365A73',
-  },
+      height:
+        42,
 
-  optionTextSelected: {
-    fontWeight: '700',
-    color: '#075A98',
-  },
+      borderRadius:
+        13,
 
-  emptyScreen: {
-    flex: 1,
+      alignItems:
+        'center',
 
-    paddingHorizontal: 30,
+      justifyContent:
+        'center',
 
-    alignItems: 'center',
-    justifyContent: 'center',
+      backgroundColor:
+        '#D8EBF6',
+    },
 
-    backgroundColor: '#F4F8FB',
-  },
+    reviewText: {
+      flex:
+        1,
+    },
 
-  emptyIcon: {
-    width: 72,
-    height: 72,
+    reviewTitle: {
+      fontSize:
+        13,
 
-    borderRadius: 24,
+      fontWeight:
+        '700',
 
-    alignItems: 'center',
-    justifyContent: 'center',
+      color:
+        '#174966',
+    },
 
-    backgroundColor: '#E5F1F9',
-  },
+    reviewDescription: {
+      marginTop:
+        3,
 
-  emptyTitle: {
-    marginTop: 16,
+      fontSize:
+        10.5,
 
-    fontSize: 20,
-    fontWeight: '700',
+      lineHeight:
+        15,
 
-    color: '#173F60',
-  },
+      color:
+        '#5E7A8D',
+    },
 
-  emptySubtitle: {
-    marginTop: 6,
+    bottomBar: {
+      position:
+        'absolute',
 
-    textAlign: 'center',
+      left:
+        0,
 
-    fontSize: 12.5,
+      right:
+        0,
 
-    color: '#8397A6',
-  },
+      bottom:
+        0,
 
-  captureAgainButton: {
-    marginTop: 22,
+      paddingHorizontal:
+        18,
 
-    height: 52,
+      paddingTop:
+        12,
 
-    paddingHorizontal: 24,
+      paddingBottom:
+        26,
 
-    borderRadius: 15,
+      borderTopWidth:
+        1,
 
-    alignItems: 'center',
-    justifyContent: 'center',
+      borderTopColor:
+        '#E8EEF3',
 
-    backgroundColor: '#0868AE',
-  },
+      backgroundColor:
+        '#FFFFFF',
+    },
 
-  captureAgainText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-});
+    submitButton: {
+      height:
+        58,
+
+      borderRadius:
+        17,
+
+      flexDirection:
+        'row',
+
+      alignItems:
+        'center',
+
+      justifyContent:
+        'center',
+
+      gap:
+        8,
+
+      backgroundColor:
+        '#0868AE',
+    },
+
+    submitDisabled: {
+      opacity:
+        0.65,
+    },
+
+    submitButtonText: {
+      fontSize:
+        16,
+
+      fontWeight:
+        '700',
+
+      color:
+        '#FFFFFF',
+    },
+
+    modalBackdrop: {
+      flex:
+        1,
+
+      justifyContent:
+        'flex-end',
+
+      backgroundColor:
+        'rgba(5,26,43,0.42)',
+    },
+
+    selectorSheet: {
+      maxHeight:
+        '72%',
+
+      paddingHorizontal:
+        18,
+
+      paddingTop:
+        10,
+
+      paddingBottom:
+        28,
+
+      borderTopLeftRadius:
+        28,
+
+      borderTopRightRadius:
+        28,
+
+      backgroundColor:
+        '#FFFFFF',
+    },
+
+    sheetHandle: {
+      width:
+        42,
+
+      height:
+        4,
+
+      alignSelf:
+        'center',
+
+      marginBottom:
+        18,
+
+      borderRadius:
+        4,
+
+      backgroundColor:
+        '#D4E0E8',
+    },
+
+    sheetHeader: {
+      flexDirection:
+        'row',
+
+      alignItems:
+        'center',
+
+      justifyContent:
+        'space-between',
+
+      marginBottom:
+        14,
+    },
+
+    sheetTitle: {
+      fontSize:
+        19,
+
+      fontWeight:
+        '700',
+
+      color:
+        '#0A3558',
+    },
+
+    sheetSubtitle: {
+      marginTop:
+        3,
+
+      fontSize:
+        11,
+
+      color:
+        '#8498A8',
+    },
+
+    closeSheetButton: {
+      width:
+        40,
+
+      height:
+        40,
+
+      borderRadius:
+        20,
+
+      alignItems:
+        'center',
+
+      justifyContent:
+        'center',
+
+      backgroundColor:
+        '#EFF5F9',
+    },
+
+    optionsList: {
+      maxHeight:
+        430,
+    },
+
+    optionRow: {
+      minHeight:
+        52,
+
+      paddingHorizontal:
+        14,
+
+      marginBottom:
+        6,
+
+      flexDirection:
+        'row',
+
+      alignItems:
+        'center',
+
+      justifyContent:
+        'space-between',
+
+      borderRadius:
+        14,
+
+      backgroundColor:
+        '#F7FAFC',
+    },
+
+    optionRowSelected: {
+      borderWidth:
+        1,
+
+      borderColor:
+        '#8DC6E8',
+
+      backgroundColor:
+        '#E8F4FB',
+    },
+
+    optionText: {
+      flex:
+        1,
+
+      paddingRight:
+        10,
+
+      fontSize:
+        13,
+
+      color:
+        '#365A73',
+    },
+
+    optionTextSelected: {
+      fontWeight:
+        '700',
+
+      color:
+        '#075A98',
+    },
+
+    emptyScreen: {
+      flex:
+        1,
+
+      paddingHorizontal:
+        30,
+
+      alignItems:
+        'center',
+
+      justifyContent:
+        'center',
+
+      backgroundColor:
+        '#F4F8FB',
+    },
+
+    emptyIcon: {
+      width:
+        72,
+
+      height:
+        72,
+
+      borderRadius:
+        24,
+
+      alignItems:
+        'center',
+
+      justifyContent:
+        'center',
+
+      backgroundColor:
+        '#E5F1F9',
+    },
+
+    emptyTitle: {
+      marginTop:
+        16,
+
+      fontSize:
+        20,
+
+      fontWeight:
+        '700',
+
+      color:
+        '#173F60',
+    },
+
+    emptySubtitle: {
+      marginTop:
+        6,
+
+      textAlign:
+        'center',
+
+      fontSize:
+        12.5,
+
+      color:
+        '#8397A6',
+    },
+
+    captureAgainButton: {
+      marginTop:
+        22,
+
+      height:
+        52,
+
+      paddingHorizontal:
+        24,
+
+      borderRadius:
+        15,
+
+      alignItems:
+        'center',
+
+      justifyContent:
+        'center',
+
+      backgroundColor:
+        '#0868AE',
+    },
+
+    captureAgainText: {
+      fontSize:
+        14,
+
+      fontWeight:
+        '700',
+
+      color:
+        '#FFFFFF',
+    },
+  });

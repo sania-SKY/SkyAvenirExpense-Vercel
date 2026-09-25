@@ -1,524 +1,1493 @@
-import { useState } from 'react';
-
-import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
+import {
+  useCallback,
+  useState,
+} from 'react';
 
 import {
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    View,
+  Ionicons,
+} from '@expo/vector-icons';
+
+import {
+  router,
+  useFocusEffect,
+} from 'expo-router';
+
+import {
+  ActivityIndicator,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
 } from 'react-native';
 
 import {
-    ExpenseStatus,
-    MockExpense,
-    mockExpenses,
-} from '../../../data/mockExpenses';
+  authenticatedFetch,
+  getCurrentUser,
+} from '../../../services/auth';
 
-type Filter =
-  | 'All'
-  | ExpenseStatus;
+type ExpenseStatus =
+  | 'SUBMITTED'
+  | 'PROCESSING'
+  | 'COMPLETED'
+  | 'REJECTED'
+  | 'FAILED';
+
+type Expense = {
+  id: string;
+
+  category: string;
+
+  business_purpose: string;
+
+  comments:
+    string | null;
+
+  receipt_storage_key:
+    string | null;
+
+  status:
+    ExpenseStatus;
+
+  external_reference:
+    string | null;
+
+  external_status:
+    string | null;
+
+  external_error:
+    string | null;
+
+  last_sync_at:
+    string | null;
+
+  submitted_at:
+    string;
+
+  created_at:
+    string;
+
+  updated_at:
+    string;
+
+  attendees:
+    string[];
+};
 
 export default function ExpensesScreen() {
-  const [filter, setFilter] =
-    useState<Filter>('All');
+  const user =
+    getCurrentUser();
 
-  const filteredExpenses =
-    filter === 'All'
-      ? mockExpenses
-      : mockExpenses.filter(
-          (expense) =>
-            expense.status === filter,
-        );
+  const [
+    expenses,
+    setExpenses,
+  ] = useState<Expense[]>([]);
+
+  const [
+    loading,
+    setLoading,
+  ] = useState(true);
+
+  const [
+    refreshing,
+    setRefreshing,
+  ] = useState(false);
+
+  const [
+    errorMessage,
+    setErrorMessage,
+  ] = useState<
+    string | null
+  >(null);
+
+  /*
+   * ------------------------------------------------
+   * LOAD REAL EXPENSES
+   * ------------------------------------------------
+   */
+
+  const loadExpenses =
+    useCallback(
+      async (
+        refresh = false,
+      ) => {
+        try {
+          setErrorMessage(
+            null,
+          );
+
+          if (refresh) {
+            setRefreshing(
+              true,
+            );
+          } else {
+            setLoading(
+              true,
+            );
+          }
+
+          const response =
+            await authenticatedFetch(
+              '/api/expenses/my',
+            );
+
+          const data =
+            await response.json();
+
+          if (!response.ok) {
+            throw new Error(
+              data.message ??
+                'Unable to load expenses.',
+            );
+          }
+
+          setExpenses(
+            Array.isArray(
+              data.expenses,
+            )
+              ? data.expenses
+              : [],
+          );
+        } catch (error) {
+          console.error(
+            'My Expenses load error:',
+            error,
+          );
+
+          setErrorMessage(
+            error instanceof Error
+              ? error.message
+              : 'Unable to load expenses.',
+          );
+        } finally {
+          setLoading(
+            false,
+          );
+
+          setRefreshing(
+            false,
+          );
+        }
+      },
+      [],
+    );
+
+  /*
+   * Reload whenever this tab becomes active.
+   *
+   * This means:
+   *
+   * submit expense
+   * → go back
+   * → My Expenses refreshes automatically
+   */
+
+  useFocusEffect(
+    useCallback(
+      () => {
+        void loadExpenses();
+      },
+      [
+        loadExpenses,
+      ],
+    ),
+  );
 
   return (
-    <View style={styles.container}>
-      <StatusBar
-        style="dark"
-        backgroundColor="#F4F8FB"
-      />
+    <View
+      style={
+        styles.container
+      }
+    >
+      {/* HEADER */}
 
-      <View style={styles.header}>
+      <View
+        style={
+          styles.header
+        }
+      >
         <Pressable
           onPress={() =>
-            router.back()
+            router.replace(
+              '/(tabs)/home',
+            )
           }
-          style={styles.backButton}
+          style={
+            styles.headerButton
+          }
         >
           <Ionicons
             name="chevron-back"
-            size={24}
-            color="#0A3558"
+            size={23}
+            color="#0B3558"
           />
         </Pressable>
 
-        <View style={styles.headerText}>
-          <Text style={styles.title}>
+        <View
+          style={
+            styles.headerText
+          }
+        >
+          <Text
+            style={
+              styles.title
+            }
+          >
             My Expenses
           </Text>
 
-          <Text style={styles.subtitle}>
-            Track your submitted expenses
+          <Text
+            style={
+              styles.subtitle
+            }
+            numberOfLines={1}
+          >
+            {user?.name
+              ? `${user.name}'s expense records`
+              : 'Your expense records'}
           </Text>
         </View>
 
-        <View style={styles.headerSpacer} />
-      </View>
-
-      <ScrollView
-        showsVerticalScrollIndicator={
-          false
-        }
-        contentContainerStyle={
-          styles.content
-        }
-      >
-        {/* FILTERS */}
-
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={
-            false
+        <Pressable
+          onPress={() =>
+            router.push(
+              '/expense/capture',
+            )
           }
-          contentContainerStyle={
-            styles.filters
+          style={
+            styles.addButton
           }
         >
-          <FilterChip
-            text="All"
-            selected={filter === 'All'}
-            onPress={() =>
-              setFilter('All')
-            }
+          <Ionicons
+            name="add"
+            size={24}
+            color="#FFFFFF"
+          />
+        </Pressable>
+      </View>
+
+      {/* CONTENT */}
+
+      {loading ? (
+        <View
+          style={
+            styles.centerState
+          }
+        >
+          <ActivityIndicator
+            size="large"
+            color="#0868AE"
           />
 
-          <FilterChip
-            text="Submitted"
-            selected={
-              filter === 'Submitted'
+          <Text
+            style={
+              styles.stateText
             }
-            onPress={() =>
-              setFilter('Submitted')
-            }
+          >
+            Loading expenses...
+          </Text>
+        </View>
+      ) : errorMessage ? (
+        <View
+          style={
+            styles.centerState
+          }
+        >
+          <Ionicons
+            name="alert-circle-outline"
+            size={42}
+            color="#B23B34"
           />
 
-          <FilterChip
-            text="Processing"
-            selected={
-              filter === 'Processing'
+          <Text
+            style={
+              styles.errorTitle
             }
+          >
+            Unable to load expenses
+          </Text>
+
+          <Text
+            style={
+              styles.errorText
+            }
+          >
+            {errorMessage}
+          </Text>
+
+          <Pressable
             onPress={() =>
-              setFilter('Processing')
+              void loadExpenses()
             }
-          />
-
-          <FilterChip
-            text="Needs Review"
-            selected={
-              filter === 'Needs Review'
+            style={
+              styles.retryButton
             }
-            onPress={() =>
-              setFilter(
-                'Needs Review',
-              )
-            }
-          />
-        </ScrollView>
-
-        {/* SUMMARY */}
-
-        <View style={styles.summaryCard}>
-          <View>
-            <Text style={styles.summaryLabel}>
-              Showing
+          >
+            <Text
+              style={
+                styles.retryText
+              }
+            >
+              Try Again
             </Text>
-
-            <Text style={styles.summaryValue}>
-              {filteredExpenses.length}
-            </Text>
-          </View>
-
-          <View style={styles.summaryIcon}>
+          </Pressable>
+        </View>
+      ) : expenses.length ===
+        0 ? (
+        <View
+          style={
+            styles.centerState
+          }
+        >
+          <View
+            style={
+              styles.emptyIcon
+            }
+          >
             <Ionicons
               name="receipt-outline"
-              size={25}
+              size={34}
               color="#0868AE"
             />
           </View>
+
+          <Text
+            style={
+              styles.emptyTitle
+            }
+          >
+            No expenses yet
+          </Text>
+
+          <Text
+            style={
+              styles.emptyText
+            }
+          >
+            Capture and submit a
+            receipt. It will appear
+            here after the backend
+            saves it.
+          </Text>
+
+          <Pressable
+            onPress={() =>
+              router.push(
+                '/expense/capture',
+              )
+            }
+            style={
+              styles.captureButton
+            }
+          >
+            <Ionicons
+              name="camera-outline"
+              size={20}
+              color="#FFFFFF"
+            />
+
+            <Text
+              style={
+                styles.captureButtonText
+              }
+            >
+              Capture Receipt
+            </Text>
+          </Pressable>
         </View>
+      ) : (
+        <ScrollView
+          contentContainerStyle={
+            styles.listContent
+          }
+          showsVerticalScrollIndicator={
+            false
+          }
+          refreshControl={
+            <RefreshControl
+              refreshing={
+                refreshing
+              }
+              onRefresh={() =>
+                void loadExpenses(
+                  true,
+                )
+              }
+            />
+          }
+        >
+          <View
+            style={
+              styles.summaryCard
+            }
+          >
+            <Text
+              style={
+                styles.summaryCount
+              }
+            >
+              {expenses.length}
+            </Text>
 
-        {/* EXPENSES */}
+            <View>
+              <Text
+                style={
+                  styles.summaryTitle
+                }
+              >
+                Expense Records
+              </Text>
 
-        <View style={styles.list}>
-          {filteredExpenses.map(
+              <Text
+                style={
+                  styles.summarySubtitle
+                }
+              >
+                Pull down to refresh
+                integration status
+              </Text>
+            </View>
+          </View>
+
+          {expenses.map(
             (expense) => (
               <ExpenseCard
-                key={expense.id}
-                expense={expense}
+                key={
+                  expense.id
+                }
+                expense={
+                  expense
+                }
               />
             ),
           )}
-        </View>
-      </ScrollView>
+        </ScrollView>
+      )}
     </View>
   );
 }
 
-type FilterChipProps = {
-  text: string;
-  selected: boolean;
-  onPress: () => void;
-};
-
-function FilterChip({
-  text,
-  selected,
-  onPress,
-}: FilterChipProps) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={[
-        styles.filterChip,
-
-        selected &&
-          styles.filterChipSelected,
-      ]}
-    >
-      <Text
-        style={[
-          styles.filterText,
-
-          selected &&
-            styles.filterTextSelected,
-        ]}
-      >
-        {text}
-      </Text>
-    </Pressable>
-  );
-}
+/*
+ * ------------------------------------------------
+ * EXPENSE CARD
+ * ------------------------------------------------
+ */
 
 function ExpenseCard({
   expense,
 }: {
-  expense: MockExpense;
+  expense:
+    Expense;
 }) {
+  const displayStatus =
+    resolveDisplayStatus(
+      expense,
+    );
+
   const theme =
-    expense.status === 'Submitted'
-      ? {
-          bg: '#E8F7EF',
-          fg: '#17875D',
-        }
-      : expense.status ===
-          'Processing'
-        ? {
-            bg: '#FFF4DD',
-            fg: '#A66A00',
-          }
-        : {
-            bg: '#FDECEA',
-            fg: '#B23B34',
-          };
+    getStatusTheme(
+      displayStatus,
+    );
 
   return (
-    <Pressable style={styles.expenseCard}>
-      <View style={styles.iconBox}>
-        <Ionicons
-          name={expense.icon}
-          size={23}
-          color="#0868AE"
-        />
-      </View>
+    <Pressable
+      onPress={() =>
+        router.push({
+          pathname:
+            '/expense/[id]',
 
-      <View style={styles.expenseInfo}>
-        <Text
-          numberOfLines={2}
-          style={styles.category}
+          params: {
+            id:
+              expense.id,
+          },
+        })
+      }
+      style={({
+        pressed,
+      }) => [
+        styles.expenseCard,
+
+        pressed &&
+          styles.expenseCardPressed,
+      ]}
+    >
+      <View
+        style={
+          styles.expenseTop
+        }
+      >
+        <View
+          style={
+            styles.categoryIcon
+          }
         >
-          {expense.category}
-        </Text>
+          <Ionicons
+            name={
+              getCategoryIcon(
+                expense.category,
+              )
+            }
+            size={22}
+            color="#0868AE"
+          />
+        </View>
 
-        <Text style={styles.purpose}>
-          {expense.businessPurpose}
-        </Text>
+        <View
+          style={
+            styles.expenseMain
+          }
+        >
+          <Text
+            style={
+              styles.category
+            }
+            numberOfLines={1}
+          >
+            {expense.category}
+          </Text>
 
-        <Text style={styles.date}>
-          {expense.date}
-        </Text>
-      </View>
-
-      <View style={styles.right}>
-        <Text style={styles.amount}>
-          {expense.amount}
-        </Text>
+          <Text
+            style={
+              styles.purpose
+            }
+            numberOfLines={2}
+          >
+            {
+              expense.business_purpose
+            }
+          </Text>
+        </View>
 
         <View
           style={[
-            styles.status,
+            styles.statusBadge,
+
             {
-              backgroundColor: theme.bg,
+              backgroundColor:
+                theme.background,
             },
           ]}
         >
           <Text
             style={[
               styles.statusText,
+
               {
-                color: theme.fg,
+                color:
+                  theme.foreground,
               },
             ]}
           >
-            {expense.status}
+            {displayStatus}
+          </Text>
+        </View>
+      </View>
+
+      <View
+        style={
+          styles.divider
+        }
+      />
+
+      <View
+        style={
+          styles.metaRow
+        }
+      >
+        <View
+          style={
+            styles.metaItem
+          }
+        >
+          <Ionicons
+            name="calendar-outline"
+            size={15}
+            color="#7890A3"
+          />
+
+          <Text
+            style={
+              styles.metaText
+            }
+          >
+            {formatDate(
+              expense.submitted_at ??
+                expense.created_at,
+            )}
           </Text>
         </View>
 
-        <Ionicons
-          name="chevron-forward"
-          size={17}
-          color="#A1B1BD"
-          style={styles.chevron}
-        />
+        {expense.attendees
+          ?.length > 0 && (
+          <View
+            style={
+              styles.metaItem
+            }
+          >
+            <Ionicons
+              name="people-outline"
+              size={15}
+              color="#7890A3"
+            />
+
+            <Text
+              style={
+                styles.metaText
+              }
+            >
+              {
+                expense.attendees
+                  .length
+              }{' '}
+              attendee
+              {expense.attendees
+                .length === 1
+                ? ''
+                : 's'}
+            </Text>
+          </View>
+        )}
       </View>
+
+      {expense.external_status && (
+        <View
+          style={
+            styles.externalRow
+          }
+        >
+          <Ionicons
+            name="sync-outline"
+            size={15}
+            color="#0868AE"
+          />
+
+          <Text
+            style={
+              styles.externalText
+            }
+          >
+            External system:{' '}
+            {
+              expense.external_status
+            }
+          </Text>
+        </View>
+      )}
+
+      {expense.external_reference && (
+        <Text
+          style={
+            styles.referenceText
+          }
+        >
+          Reference:{' '}
+          {
+            expense.external_reference
+          }
+        </Text>
+      )}
+
+      {expense.external_error && (
+        <View
+          style={
+            styles.externalError
+          }
+        >
+          <Ionicons
+            name="warning-outline"
+            size={16}
+            color="#B23B34"
+          />
+
+          <Text
+            style={
+              styles.externalErrorText
+            }
+          >
+            {
+              expense.external_error
+            }
+          </Text>
+        </View>
+      )}
     </Pressable>
   );
 }
+
+/*
+ * ------------------------------------------------
+ * STATUS
+ * ------------------------------------------------
+ */
+
+function resolveDisplayStatus(
+  expense:
+    Expense,
+) {
+  const external =
+    expense.external_status
+      ?.trim()
+      .toUpperCase();
+
+  /*
+   * External system has priority once it
+   * starts processing the expense.
+   */
+
+  if (
+    external ===
+      'COMPLETED' ||
+    external ===
+      'SUCCESS' ||
+    external ===
+      'SUCCEEDED'
+  ) {
+    return 'Completed';
+  }
+
+  if (
+    external ===
+      'PROCESSING' ||
+    external ===
+      'PENDING' ||
+    external ===
+      'QUEUED'
+  ) {
+    return 'Processing';
+  }
+
+  if (
+    external ===
+      'FAILED' ||
+    external ===
+      'REJECTED' ||
+    external ===
+      'ERROR'
+  ) {
+    return 'Needs Review';
+  }
+
+  switch (
+    expense.status
+  ) {
+    case 'COMPLETED':
+      return 'Completed';
+
+    case 'PROCESSING':
+      return 'Processing';
+
+    case 'REJECTED':
+    case 'FAILED':
+      return 'Needs Review';
+
+    case 'SUBMITTED':
+    default:
+      return 'Submitted';
+  }
+}
+
+function getStatusTheme(
+  status:
+    string,
+) {
+  switch (status) {
+    case 'Completed':
+      return {
+        background:
+          '#E8F7EF',
+
+        foreground:
+          '#16845B',
+      };
+
+    case 'Processing':
+      return {
+        background:
+          '#FFF4DD',
+
+        foreground:
+          '#A66A00',
+      };
+
+    case 'Needs Review':
+      return {
+        background:
+          '#FDECEA',
+
+        foreground:
+          '#B23B34',
+      };
+
+    default:
+      return {
+        background:
+          '#E7F2FA',
+
+        foreground:
+          '#0868AE',
+      };
+  }
+}
+
+/*
+ * ------------------------------------------------
+ * HELPERS
+ * ------------------------------------------------
+ */
+
+function formatDate(
+  value?:
+    string,
+) {
+  if (!value) {
+    return '';
+  }
+
+  const date =
+    new Date(
+      value,
+    );
+
+  if (
+    Number.isNaN(
+      date.getTime(),
+    )
+  ) {
+    return value;
+  }
+
+  return date
+    .toLocaleDateString(
+      undefined,
+      {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      },
+    );
+}
+
+function getCategoryIcon(
+  category:
+    string,
+):
+  keyof typeof Ionicons.glyphMap {
+  const value =
+    category
+      .toLowerCase();
+
+  if (
+    value.includes(
+      'lodg',
+    ) ||
+    value.includes(
+      'hotel',
+    )
+  ) {
+    return 'bed-outline';
+  }
+
+  if (
+    value.includes(
+      'meal',
+    ) ||
+    value.includes(
+      'food',
+    ) ||
+    value.includes(
+      'entertain',
+    )
+  ) {
+    return 'restaurant-outline';
+  }
+
+  if (
+    value.includes(
+      'air',
+    ) ||
+    value.includes(
+      'flight',
+    )
+  ) {
+    return 'airplane-outline';
+  }
+
+  if (
+    value.includes(
+      'fuel',
+    ) ||
+    value.includes(
+      'car',
+    ) ||
+    value.includes(
+      'parking',
+    ) ||
+    value.includes(
+      'ground',
+    )
+  ) {
+    return 'car-outline';
+  }
+
+  return 'receipt-outline';
+}
+
+/*
+ * ------------------------------------------------
+ * STYLES
+ * ------------------------------------------------
+ */
 
 const styles =
   StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: '#F4F8FB',
+
+      backgroundColor:
+        '#F4F8FB',
     },
 
     header: {
-      paddingTop: 50,
-      paddingHorizontal: 18,
-      paddingBottom: 18,
+      paddingTop:
+        52,
 
-      flexDirection: 'row',
-      alignItems: 'center',
+      paddingBottom:
+        16,
 
-      backgroundColor: '#FFFFFF',
+      paddingHorizontal:
+        18,
 
-      borderBottomWidth: 1,
-      borderBottomColor: '#E8EEF3',
+      flexDirection:
+        'row',
+
+      alignItems:
+        'center',
+
+      borderBottomWidth:
+        1,
+
+      borderBottomColor:
+        '#E5EDF3',
+
+      backgroundColor:
+        '#FFFFFF',
     },
 
-    backButton: {
+    headerButton: {
       width: 44,
+
       height: 44,
 
-      borderRadius: 22,
+      alignItems:
+        'center',
 
-      alignItems: 'center',
-      justifyContent: 'center',
+      justifyContent:
+        'center',
 
-      backgroundColor: '#EFF5F9',
+      borderRadius:
+        22,
+
+      backgroundColor:
+        '#EFF5F9',
     },
 
     headerText: {
       flex: 1,
-      alignItems: 'center',
+
+      paddingHorizontal:
+        12,
     },
 
     title: {
-      fontSize: 19,
-      fontWeight: '700',
+      fontSize: 21,
 
-      color: '#0A3558',
+      fontWeight:
+        '700',
+
+      color:
+        '#0B3558',
     },
 
     subtitle: {
       marginTop: 2,
 
-      fontSize: 10.5,
+      fontSize: 11,
 
-      color: '#8498A8',
+      color:
+        '#8196A6',
     },
 
-    headerSpacer: {
+    addButton: {
       width: 44,
+
+      height: 44,
+
+      alignItems:
+        'center',
+
+      justifyContent:
+        'center',
+
+      borderRadius:
+        22,
+
+      backgroundColor:
+        '#0868AE',
     },
 
-    content: {
-      paddingBottom: 35,
+    centerState: {
+      flex: 1,
+
+      paddingHorizontal:
+        30,
+
+      alignItems:
+        'center',
+
+      justifyContent:
+        'center',
     },
 
-    filters: {
+    stateText: {
+      marginTop: 12,
+
+      fontSize: 13,
+
+      color:
+        '#7D92A3',
+    },
+
+    errorTitle: {
+      marginTop: 13,
+
+      fontSize: 18,
+
+      fontWeight:
+        '700',
+
+      color:
+        '#173F60',
+    },
+
+    errorText: {
+      marginTop: 7,
+
+      textAlign:
+        'center',
+
+      fontSize: 12.5,
+
+      lineHeight: 18,
+
+      color:
+        '#B23B34',
+    },
+
+    retryButton: {
+      marginTop: 18,
+
+      paddingHorizontal:
+        20,
+
+      paddingVertical:
+        10,
+
+      borderRadius:
+        16,
+
+      backgroundColor:
+        '#E7F2FA',
+    },
+
+    retryText: {
+      fontSize: 12,
+
+      fontWeight:
+        '700',
+
+      color:
+        '#0868AE',
+    },
+
+    emptyIcon: {
+      width: 70,
+
+      height: 70,
+
+      alignItems:
+        'center',
+
+      justifyContent:
+        'center',
+
+      borderRadius:
+        24,
+
+      backgroundColor:
+        '#E7F2FA',
+    },
+
+    emptyTitle: {
+      marginTop: 16,
+
+      fontSize: 19,
+
+      fontWeight:
+        '700',
+
+      color:
+        '#173F60',
+    },
+
+    emptyText: {
+      marginTop: 7,
+
+      maxWidth: 280,
+
+      textAlign:
+        'center',
+
+      fontSize: 12.5,
+
+      lineHeight: 19,
+
+      color:
+        '#8296A6',
+    },
+
+    captureButton: {
+      marginTop: 22,
+
+      paddingHorizontal:
+        22,
+
+      height: 52,
+
+      flexDirection:
+        'row',
+
       gap: 8,
 
-      paddingHorizontal: 20,
-      paddingVertical: 18,
+      alignItems:
+        'center',
+
+      justifyContent:
+        'center',
+
+      borderRadius:
+        16,
+
+      backgroundColor:
+        '#0868AE',
     },
 
-    filterChip: {
-      paddingHorizontal: 16,
-      paddingVertical: 9,
+    captureButtonText: {
+      fontSize: 14,
 
-      borderRadius: 18,
+      fontWeight:
+        '700',
 
-      borderWidth: 1,
-      borderColor: '#D6E2EA',
-
-      backgroundColor: '#FFFFFF',
+      color:
+        '#FFFFFF',
     },
 
-    filterChipSelected: {
-      borderColor: '#0868AE',
+    listContent: {
+      paddingHorizontal:
+        18,
 
-      backgroundColor: '#0868AE',
-    },
+      paddingTop:
+        18,
 
-    filterText: {
-      fontSize: 11.5,
-      fontWeight: '600',
-
-      color: '#60798C',
-    },
-
-    filterTextSelected: {
-      color: '#FFFFFF',
+      paddingBottom:
+        110,
     },
 
     summaryCard: {
-      marginHorizontal: 20,
-      marginBottom: 16,
+      marginBottom:
+        16,
 
-      paddingHorizontal: 18,
-      paddingVertical: 16,
+      padding:
+        17,
 
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent:
-        'space-between',
+      flexDirection:
+        'row',
 
-      borderRadius: 18,
+      alignItems:
+        'center',
 
-      backgroundColor: '#E8F3FA',
+      gap:
+        13,
+
+      borderRadius:
+        20,
+
+      backgroundColor:
+        '#E8F3FA',
     },
 
-    summaryLabel: {
-      fontSize: 11,
+    summaryCount: {
+      fontSize:
+        30,
 
-      color: '#6D8597',
+      fontWeight:
+        '700',
+
+      color:
+        '#0868AE',
     },
 
-    summaryValue: {
-      marginTop: 1,
+    summaryTitle: {
+      fontSize:
+        14,
 
-      fontSize: 24,
-      fontWeight: '700',
+      fontWeight:
+        '700',
 
-      color: '#0B436D',
+      color:
+        '#173F60',
     },
 
-    summaryIcon: {
-      width: 45,
-      height: 45,
+    summarySubtitle: {
+      marginTop:
+        2,
 
-      borderRadius: 15,
+      fontSize:
+        10.5,
 
-      alignItems: 'center',
-      justifyContent: 'center',
-
-      backgroundColor: '#D6EAF6',
-    },
-
-    list: {
-      paddingHorizontal: 20,
-
-      gap: 11,
+      color:
+        '#6F8798',
     },
 
     expenseCard: {
-      minHeight: 110,
+      marginBottom:
+        13,
 
-      padding: 14,
+      padding:
+        15,
 
-      flexDirection: 'row',
-      alignItems: 'center',
+      borderRadius:
+        20,
 
-      borderRadius: 20,
+      backgroundColor:
+        '#FFFFFF',
 
-      backgroundColor: '#FFFFFF',
-
-      elevation: 1,
+      elevation:
+        1,
     },
 
-    iconBox: {
-      width: 50,
-      height: 50,
+    expenseCardPressed: {
+      opacity:
+        0.92,
 
-      borderRadius: 16,
-
-      alignItems: 'center',
-      justifyContent: 'center',
-
-      backgroundColor: '#E8F3FA',
+      transform: [
+        {
+          scale:
+            0.995,
+        },
+      ],
     },
 
-    expenseInfo: {
+    expenseTop: {
+      flexDirection:
+        'row',
+
+      alignItems:
+        'flex-start',
+    },
+
+    categoryIcon: {
+      width: 46,
+
+      height: 46,
+
+      alignItems:
+        'center',
+
+      justifyContent:
+        'center',
+
+      borderRadius:
+        15,
+
+      backgroundColor:
+        '#E7F2FA',
+    },
+
+    expenseMain: {
       flex: 1,
 
-      marginLeft: 12,
-      paddingRight: 7,
+      marginLeft:
+        11,
+
+      paddingRight:
+        8,
     },
 
     category: {
-      fontSize: 13,
-      lineHeight: 17,
+      fontSize:
+        13.5,
 
-      fontWeight: '700',
+      fontWeight:
+        '700',
 
-      color: '#183F60',
+      color:
+        '#183F60',
     },
 
     purpose: {
-      marginTop: 4,
+      marginTop:
+        3,
 
-      fontSize: 10.5,
+      fontSize:
+        11,
 
-      color: '#698195',
+      lineHeight:
+        16,
+
+      color:
+        '#6B8497',
     },
 
-    date: {
-      marginTop: 4,
+    statusBadge: {
+      paddingHorizontal:
+        9,
 
-      fontSize: 9.5,
+      paddingVertical:
+        5,
 
-      color: '#94A6B4',
-    },
-
-    right: {
-      alignItems: 'flex-end',
-    },
-
-    amount: {
-      fontSize: 13,
-      fontWeight: '700',
-
-      color: '#183F60',
-    },
-
-    status: {
-      marginTop: 7,
-
-      paddingHorizontal: 8,
-      paddingVertical: 4,
-
-      borderRadius: 12,
+      borderRadius:
+        13,
     },
 
     statusText: {
-      fontSize: 8.5,
-      fontWeight: '700',
+      fontSize:
+        9,
+
+      fontWeight:
+        '700',
     },
 
-    chevron: {
-      marginTop: 8,
+    divider: {
+      height:
+        1,
+
+      marginVertical:
+        12,
+
+      backgroundColor:
+        '#EDF2F5',
+    },
+
+    metaRow: {
+      flexDirection:
+        'row',
+
+      flexWrap:
+        'wrap',
+
+      gap:
+        14,
+    },
+
+    metaItem: {
+      flexDirection:
+        'row',
+
+      alignItems:
+        'center',
+
+      gap:
+        5,
+    },
+
+    metaText: {
+      fontSize:
+        10.5,
+
+      color:
+        '#7890A3',
+    },
+
+    externalRow: {
+      marginTop:
+        11,
+
+      paddingTop:
+        10,
+
+      flexDirection:
+        'row',
+
+      alignItems:
+        'center',
+
+      gap:
+        6,
+
+      borderTopWidth:
+        1,
+
+      borderTopColor:
+        '#EDF2F5',
+    },
+
+    externalText: {
+      fontSize:
+        10.5,
+
+      fontWeight:
+        '600',
+
+      color:
+        '#52738A',
+    },
+
+    referenceText: {
+      marginTop:
+        5,
+
+      fontSize:
+        9.5,
+
+      color:
+        '#8297A7',
+    },
+
+    externalError: {
+      marginTop:
+        10,
+
+      padding:
+        10,
+
+      flexDirection:
+        'row',
+
+      gap:
+        7,
+
+      alignItems:
+        'flex-start',
+
+      borderRadius:
+        12,
+
+      backgroundColor:
+        '#FDECEA',
+    },
+
+    externalErrorText: {
+      flex:
+        1,
+
+      fontSize:
+        10.5,
+
+      lineHeight:
+        15,
+
+      color:
+        '#9B3430',
     },
   });

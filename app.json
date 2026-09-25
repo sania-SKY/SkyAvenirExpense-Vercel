@@ -10,16 +10,20 @@
 
     "ios": {
       "icon": "./assets/expo.icon",
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.skyavenir.expense"
     },
 
     "android": {
+      "package": "com.skyavenir.expense",
+
       "adaptiveIcon": {
         "backgroundColor": "#062B4A",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
+
       "predictiveBackGestureEnabled": false
     },
 
@@ -30,6 +34,7 @@
 
     "plugins": [
       "expo-router",
+
       [
         "expo-splash-screen",
         {
@@ -39,12 +44,38 @@
           "resizeMode": "cover"
         }
       ],
-      "expo-status-bar"
+
+      "expo-status-bar",
+
+      "@react-native-google-signin/google-signin",
+
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Sky Avenir Expense to use your camera to capture expense receipts."
+        }
+      ],
+
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Sky Avenir Expense to access your photos so you can select expense receipts.",
+          "cameraPermission": "Allow Sky Avenir Expense to use your camera to capture expense receipts."
+        }
+      ]
     ],
 
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+
+    "extra": {
+      "router": {},
+
+      "eas": {
+        "projectId": "1cafa76d-5969-4560-9a20-f3d671e52f79"
+      }
     }
   }
 }

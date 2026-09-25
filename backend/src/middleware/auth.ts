@@ -1,18 +1,26 @@
 import type {
-    NextFunction,
-    Request,
-    Response,
+  NextFunction,
+  Request,
+  Response,
 } from 'express';
 
 import {
-    createRemoteJWKSet,
-    jwtVerify,
+  jwtVerify,
 } from 'jose';
 
-import { env } from '../config/env.js';
+import {
+  env,
+} from '../config/env.js';
+
+export type AuthProvider =
+  | 'microsoft'
+  | 'google'
+  | 'email';
 
 export type AuthenticatedUser = {
-  id: string;
+  id?: string;
+  provider: AuthProvider;
+  providerUserId: string;
   name: string;
   email: string;
 };
@@ -25,26 +33,31 @@ declare global {
   }
 }
 
+function getSessionSecret(): Uint8Array {
+  if (!env.appSessionSecret) {
+    throw new Error(
+      'APP_SESSION_SECRET is not configured.',
+    );
+  }
+
+  return new TextEncoder().encode(
+    env.appSessionSecret,
+  );
+}
+
 export async function requireAuth(
   req: Request,
   res: Response,
   next: NextFunction,
-) {
+): Promise<void> {
   try {
-    if (env.authMode === 'mock') {
-      req.user = {
-        id: 'mock-user-001',
-        name: 'Sky Avenir Employee',
-        email: 'employee@skyavenir.com',
-      };
+    const authorization =
+      req.headers.authorization;
 
-      next();
-      return;
-    }
-
-    const authorization = req.headers.authorization;
-
-    if (!authorization?.startsWith('Bearer ')) {
+    if (
+      !authorization ||
+      !authorization.startsWith('Bearer ')
+    ) {
       res.status(401).json({
         message: 'Authentication required.',
       });
@@ -52,75 +65,90 @@ export async function requireAuth(
       return;
     }
 
-    const token = authorization.substring(7);
+    const token =
+      authorization
+        .substring(7)
+        .trim();
 
-    if (
-      !env.microsoft.tenantId ||
-      !env.microsoft.clientId
-    ) {
-      res.status(500).json({
-        message:
-          'Microsoft authentication is not configured.',
+    if (!token) {
+      res.status(401).json({
+        message: 'Authentication required.',
       });
 
       return;
     }
 
-    const issuer =
-      `https://login.microsoftonline.com/` +
-      `${env.microsoft.tenantId}/v2.0`;
+    const { payload } =
+      await jwtVerify(
+        token,
+        getSessionSecret(),
+        {
+          issuer:
+            'sky-avenir-expense-api',
 
-    const jwksUrl = new URL(
-      `https://login.microsoftonline.com/` +
-      `${env.microsoft.tenantId}/discovery/v2.0/keys`,
-    );
+          audience:
+            'sky-avenir-expense-app',
+        },
+      );
 
-    const JWKS = createRemoteJWKSet(jwksUrl);
+    const provider =
+      payload.provider;
 
-    const { payload } = await jwtVerify(
-      token,
-      JWKS,
-      {
-        issuer,
-        audience: env.microsoft.clientId,
-      },
-    );
-
-    const id =
-      typeof payload.oid === 'string'
-        ? payload.oid
-        : payload.sub;
+    const providerUserId =
+      payload.providerUserId;
 
     const name =
-      typeof payload.name === 'string'
-        ? payload.name
-        : 'Sky Avenir Employee';
+      payload.name;
 
     const email =
-      typeof payload.preferred_username === 'string'
-        ? payload.preferred_username
-        : '';
+      payload.email;
 
-    if (!id) {
+    if (
+      (
+        provider !== 'google' &&
+        provider !== 'microsoft' &&
+        provider !== 'email'
+      ) ||
+      typeof providerUserId !== 'string' ||
+      typeof name !== 'string' ||
+      typeof email !== 'string'
+    ) {
       res.status(401).json({
-        message: 'Invalid user identity.',
+        message:
+          'Invalid authentication session.',
       });
 
       return;
     }
 
     req.user = {
-      id,
+      id:
+        typeof payload.sub === 'string'
+          ? payload.sub
+          : undefined,
+
+      provider,
+
+      providerUserId,
+
       name,
-      email,
+
+      email:
+        email
+          .trim()
+          .toLowerCase(),
     };
 
     next();
   } catch (error) {
-    console.error('Authentication error:', error);
+    console.error(
+      'Authentication error:',
+      error,
+    );
 
     res.status(401).json({
-      message: 'Invalid or expired authentication.',
+      message:
+        'Invalid or expired authentication.',
     });
   }
 }

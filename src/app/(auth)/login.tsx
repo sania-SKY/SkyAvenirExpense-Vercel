@@ -1,169 +1,366 @@
-import { useRef, useState } from 'react';
-
-import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
+import {
+  useRef,
+  useState,
+} from 'react';
 
 import {
-    Animated,
-    ImageBackground,
-    Pressable,
-    StyleSheet,
-    Text,
-    View,
+  Ionicons,
+} from '@expo/vector-icons';
+
+import {
+  LinearGradient,
+} from 'expo-linear-gradient';
+
+import {
+  router,
+} from 'expo-router';
+
+import {
+  StatusBar,
+} from 'expo-status-bar';
+
+import {
+  Animated,
+  ImageBackground,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
 } from 'react-native';
 
-import { signInWithMicrosoft } from '../../../services/auth';
+import {
+  signInWithGoogle,
+  signInWithMicrosoft,
+  signInWithWorkEmail,
+} from '../../../services/auth';
 
-const backgroundImage = require('../../../assets/images/login-bg.png');
+const backgroundImage =
+  require(
+    '../../../assets/images/login-bg.png',
+  );
+
+type Provider =
+  | 'microsoft'
+  | 'google'
+  | 'email';
 
 export default function LoginScreen() {
-  const [backgroundReady, setBackgroundReady] =
+  const [
+    backgroundReady,
+    setBackgroundReady,
+  ] =
     useState(false);
 
-  const [isSigningIn, setIsSigningIn] =
-    useState(false);
+  const [
+    activeProvider,
+    setActiveProvider,
+  ] =
+    useState<Provider | null>(
+      null,
+    );
 
-  const [loginError, setLoginError] =
+  const [
+    loginError,
+    setLoginError,
+  ] =
     useState('');
 
-  const screenOpacity = useRef(
-    new Animated.Value(0),
-  ).current;
+  const [
+    workEmail,
+    setWorkEmail,
+  ] =
+    useState('');
+
+  const screenOpacity =
+    useRef(
+      new Animated.Value(0),
+    ).current;
 
   function handleBackgroundLoaded() {
     if (backgroundReady) {
       return;
     }
 
-    setBackgroundReady(true);
+    setBackgroundReady(
+      true,
+    );
 
-    Animated.timing(screenOpacity, {
-      toValue: 1,
-      duration: 350,
-      useNativeDriver: true,
-    }).start();
+    Animated.timing(
+      screenOpacity,
+      {
+        toValue:
+          1,
+
+        duration:
+          350,
+
+        useNativeDriver:
+          true,
+      },
+    ).start();
   }
 
-  async function handleMicrosoftSignIn() {
-    if (isSigningIn) {
+  function goToProcessing(
+    provider:
+      Provider,
+
+    user: {
+      name: string;
+      email: string;
+    },
+  ) {
+    router.replace({
+      pathname:
+        '/(auth)/auth-processing',
+
+      params: {
+        provider,
+
+        name:
+          user.name,
+
+        email:
+          user.email,
+      },
+    });
+  }
+
+  async function handleProviderSignIn(
+    provider:
+      | 'microsoft'
+      | 'google',
+  ) {
+    if (activeProvider) {
       return;
     }
 
     try {
-      setIsSigningIn(true);
       setLoginError('');
 
+      setActiveProvider(
+        provider,
+      );
+
       const user =
-        await signInWithMicrosoft();
+        provider ===
+        'microsoft'
+          ? await signInWithMicrosoft()
+          : await signInWithGoogle();
 
-      router.replace({
-        pathname: '/(tabs)/home',
-
-        params: {
-          name: user.name,
-          email: user.email,
-        },
-      });
+      goToProcessing(
+        provider,
+        user,
+      );
     } catch (error) {
-      console.error(
-        'Microsoft sign-in error:',
+      const message =
+        error instanceof Error
+          ? error.message
+          : '';
+
+      /*
+       * Normal Google cancellation should
+       * NOT create a red LogBox.
+       */
+      if (
+        message ===
+        'GOOGLE_SIGN_IN_CANCELLED'
+      ) {
+        setLoginError('');
+
+        return;
+      }
+
+      console.log(
+        `${provider} sign-in issue:`,
         error,
       );
 
       setLoginError(
-        'Unable to sign in. Please check your connection and try again.',
+        message ||
+          'Unable to sign in. Please try again.',
       );
     } finally {
-      setIsSigningIn(false);
+      setActiveProvider(
+        null,
+      );
+    }
+  }
+
+  async function handleWorkEmail() {
+    if (activeProvider) {
+      return;
+    }
+
+    try {
+      setLoginError('');
+
+      setActiveProvider(
+        'email',
+      );
+
+      const user =
+        await signInWithWorkEmail(
+          workEmail,
+        );
+
+      goToProcessing(
+        'email',
+        user,
+      );
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : '';
+
+      setLoginError(
+        message ||
+          'Unable to continue with work email.',
+      );
+    } finally {
+      setActiveProvider(
+        null,
+      );
     }
   }
 
   return (
-    <View style={styles.root}>
+    <View
+      style={
+        styles.root
+      }
+    >
       <StatusBar
         style="dark"
-        translucent
-        backgroundColor="transparent"
       />
 
       <ImageBackground
-        source={backgroundImage}
-        style={styles.background}
+        source={
+          backgroundImage
+        }
+        style={
+          styles.background
+        }
         resizeMode="cover"
-        onLoadEnd={handleBackgroundLoaded}
+        onLoadEnd={
+          handleBackgroundLoaded
+        }
       >
         {backgroundReady && (
           <Animated.View
             style={[
               styles.screen,
               {
-                opacity: screenOpacity,
+                opacity:
+                  screenOpacity,
               },
             ]}
           >
-            <View style={styles.content}>
-              {/* Logo already exists inside login-bg.png */}
-
-              <View style={styles.logoSpace} />
-
-              {/* EXPENSE */}
-
-              <Text style={styles.expenseText}>
-                E X P E N S E
-              </Text>
-
-              <View style={styles.goldLine} />
-
-              {/* WELCOME */}
-
-              <View style={styles.welcomeSection}>
-                <Text style={styles.welcome}>
-                  Welcome
-                </Text>
-
-                <Text style={styles.subtitle}>
-                  Sign in with your company account
-                  {'\n'}
-                  to continue
-                </Text>
-              </View>
-
-              {/* MICROSOFT BUTTON */}
-
-              <Pressable
-                onPress={handleMicrosoftSignIn}
-                disabled={isSigningIn}
-                style={({ pressed }) => [
-                  styles.microsoftButton,
-
-                  pressed &&
-                    !isSigningIn &&
-                    styles.microsoftPressed,
-
-                  isSigningIn &&
-                    styles.microsoftDisabled,
-                ]}
+            <KeyboardAvoidingView
+              style={
+                styles.screen
+              }
+              behavior={
+                Platform.OS ===
+                'ios'
+                  ? 'padding'
+                  : undefined
+              }
+            >
+              <ScrollView
+                contentContainerStyle={
+                  styles.scrollContent
+                }
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={
+                  false
+                }
               >
-                <LinearGradient
-                  colors={[
-                    '#0866B3',
-                    '#1385D2',
-                  ]}
-                  start={{
-                    x: 0,
-                    y: 0,
-                  }}
-                  end={{
-                    x: 1,
-                    y: 0,
-                  }}
-                  style={styles.microsoftGradient}
+                {/* Logo is embedded in login-bg.png */}
+
+                <View
+                  style={
+                    styles.logoSpace
+                  }
+                />
+
+                <Text
+                  style={
+                    styles.expenseText
+                  }
                 >
-                  <View
+                  E X P E N S E
+                </Text>
+
+                <View
+                  style={
+                    styles.goldLine
+                  }
+                />
+
+                <View
+                  style={
+                    styles.welcomeSection
+                  }
+                >
+                  <Text
                     style={
-                      styles.microsoftContent
+                      styles.welcome
+                    }
+                  >
+                    Welcome
+                  </Text>
+
+                  <Text
+                    style={
+                      styles.subtitle
+                    }
+                  >
+                    Sign in with your company account
+                    {'\n'}
+                    to continue
+                  </Text>
+                </View>
+
+                {/* MICROSOFT */}
+
+                <Pressable
+                  disabled={
+                    activeProvider !==
+                    null
+                  }
+                  onPress={() =>
+                    handleProviderSignIn(
+                      'microsoft',
+                    )
+                  }
+                  style={
+                    styles.providerWrapper
+                  }
+                >
+                  <LinearGradient
+                    colors={[
+                      '#075FA8',
+                      '#1385D2',
+                    ]}
+                    start={{
+                      x:
+                        0,
+                      y:
+                        0,
+                    }}
+                    end={{
+                      x:
+                        1,
+                      y:
+                        0,
+                    }}
+                    style={
+                      styles.microsoftButton
                     }
                   >
                     <MicrosoftLogo />
@@ -173,52 +370,248 @@ export default function LoginScreen() {
                         styles.microsoftText
                       }
                     >
-                      {isSigningIn
+                      {activeProvider ===
+                      'microsoft'
                         ? 'Signing in...'
-                        : 'Sign in with Microsoft'}
+                        : 'Continue with Microsoft'}
+                    </Text>
+                  </LinearGradient>
+                </Pressable>
+
+                {/* GOOGLE */}
+
+                <Pressable
+                  disabled={
+                    activeProvider !==
+                    null
+                  }
+                  onPress={() =>
+                    handleProviderSignIn(
+                      'google',
+                    )
+                  }
+                  style={({
+                    pressed,
+                  }) => [
+                    styles.googleButton,
+
+                    pressed &&
+                      !activeProvider &&
+                      styles.googlePressed,
+                  ]}
+                >
+                  <GoogleLogo />
+
+                  <Text
+                    style={
+                      styles.googleText
+                    }
+                  >
+                    {activeProvider ===
+                    'google'
+                      ? 'Opening Google...'
+                      : 'Continue with Google'}
+                  </Text>
+                </Pressable>
+
+                {/* DIVIDER */}
+
+                <View
+                  style={
+                    styles.dividerRow
+                  }
+                >
+                  <View
+                    style={
+                      styles.dividerLine
+                    }
+                  />
+
+                  <Text
+                    style={
+                      styles.dividerText
+                    }
+                  >
+                    OR
+                  </Text>
+
+                  <View
+                    style={
+                      styles.dividerLine
+                    }
+                  />
+                </View>
+
+                {/* WORK EMAIL */}
+
+                <Text
+                  style={
+                    styles.workEmailLabel
+                  }
+                >
+                  Work Email
+                </Text>
+
+                <View
+                  style={
+                    styles.emailInputContainer
+                  }
+                >
+                  <Ionicons
+                    name="mail-outline"
+                    size={20}
+                    color="#527590"
+                  />
+
+                  <TextInput
+                    value={
+                      workEmail
+                    }
+                    onChangeText={
+                      setWorkEmail
+                    }
+                    placeholder="name@skyavenir.com"
+                    placeholderTextColor="#8DA3B5"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={
+                      false
+                    }
+                    editable={
+                      activeProvider ===
+                      null
+                    }
+                    returnKeyType="done"
+                    onSubmitEditing={
+                      handleWorkEmail
+                    }
+                    style={
+                      styles.emailInput
+                    }
+                  />
+                </View>
+
+                <Pressable
+                  disabled={
+                    activeProvider !==
+                    null
+                  }
+                  onPress={
+                    handleWorkEmail
+                  }
+                  style={({
+                    pressed,
+                  }) => [
+                    styles.emailButton,
+
+                    pressed &&
+                      !activeProvider &&
+                      styles.emailButtonPressed,
+                  ]}
+                >
+                  <Ionicons
+                    name="arrow-forward-circle-outline"
+                    size={21}
+                    color="#FFFFFF"
+                  />
+
+                  <Text
+                    style={
+                      styles.emailButtonText
+                    }
+                  >
+                    {activeProvider ===
+                    'email'
+                      ? 'Verifying...'
+                      : 'Continue with Work Email'}
+                  </Text>
+                </Pressable>
+
+                {loginError ? (
+                  <Text
+                    style={
+                      styles.error
+                    }
+                  >
+                    {loginError}
+                  </Text>
+                ) : null}
+
+                {/* SECURITY */}
+
+                <View
+                  style={
+                    styles.infoCard
+                  }
+                >
+                  <View
+                    style={
+                      styles.infoIcon
+                    }
+                  >
+                    <Ionicons
+                      name="shield-checkmark"
+                      size={21}
+                      color="#0868AE"
+                    />
+                  </View>
+
+                  <View
+                    style={
+                      styles.infoContent
+                    }
+                  >
+                    <Text
+                      style={
+                        styles.infoTitle
+                      }
+                    >
+                      Secure company access
+                    </Text>
+
+                    <Text
+                      style={
+                        styles.infoSubtitle
+                      }
+                    >
+                      Use your approved Microsoft,
+                      Google or company work email
+                      account.
                     </Text>
                   </View>
-                </LinearGradient>
-              </Pressable>
+                </View>
 
-              {loginError ? (
-                <Text style={styles.error}>
-                  {loginError}
+                <Text
+                  style={
+                    styles.accessText
+                  }
+                >
+                  Need access? Contact your administrator.
                 </Text>
-              ) : null}
 
-              {/* FEATURES */}
+                {/* FOOTER */}
 
-              <View style={styles.features}>
-                <FeatureItem
-                  icon="shield-checkmark"
-                  title="Secure Access"
-                  subtitle="Your company data stays protected"
-                />
+                <View
+                  style={
+                    styles.footer
+                  }
+                >
+                  <Text
+                    style={
+                      styles.footerText
+                    }
+                  >
+                    PEOPLE  |  PROGRESS  |  A HIGHER TOMORROW
+                  </Text>
 
-                <FeatureItem
-                  icon="people"
-                  title="For Sky Avenir Employees"
-                  subtitle="Fast and simple expense submission"
-                />
-
-                <FeatureItem
-                  icon="sparkles"
-                  title="More Time for What Matters"
-                  subtitle="Less admin, more impact"
-                />
-              </View>
-            </View>
-
-            {/* FOOTER */}
-
-            <View style={styles.footer}>
-              <Text style={styles.footerText}>
-                PEOPLE  |  PROGRESS  |  A HIGHER TOMORROW
-              </Text>
-
-              <View style={styles.footerLine} />
-            </View>
+                  <View
+                    style={
+                      styles.footerLine
+                    }
+                  />
+                </View>
+              </ScrollView>
+            </KeyboardAvoidingView>
           </Animated.View>
         )}
       </ImageBackground>
@@ -226,39 +619,49 @@ export default function LoginScreen() {
   );
 }
 
-/* MICROSOFT LOGO */
-
 function MicrosoftLogo() {
   return (
-    <View style={styles.microsoftLogo}>
-      <View style={styles.microsoftRow}>
+    <View
+      style={
+        styles.microsoftLogo
+      }
+    >
+      <View
+        style={
+          styles.microsoftRow
+        }
+      >
         <View
           style={[
             styles.microsoftSquare,
-            styles.microsoftRed,
+            styles.red,
           ]}
         />
 
         <View
           style={[
             styles.microsoftSquare,
-            styles.microsoftGreen,
+            styles.green,
           ]}
         />
       </View>
 
-      <View style={styles.microsoftRow}>
+      <View
+        style={
+          styles.microsoftRow
+        }
+      >
         <View
           style={[
             styles.microsoftSquare,
-            styles.microsoftBlue,
+            styles.blue,
           ]}
         />
 
         <View
           style={[
             styles.microsoftSquare,
-            styles.microsoftYellow,
+            styles.yellow,
           ]}
         />
       </View>
@@ -266,310 +669,617 @@ function MicrosoftLogo() {
   );
 }
 
-type FeatureItemProps = {
-  icon: keyof typeof Ionicons.glyphMap;
-  title: string;
-  subtitle: string;
-};
-
-function FeatureItem({
-  icon,
-  title,
-  subtitle,
-}: FeatureItemProps) {
+function GoogleLogo() {
   return (
-    <View style={styles.featureRow}>
-      <View style={styles.featureIcon}>
-        <Ionicons
-          name={icon}
-          size={23}
-          color="#075A98"
-        />
-      </View>
-
-      <View style={styles.featureContent}>
-        <Text style={styles.featureTitle}>
-          {title}
-        </Text>
-
-        <Text style={styles.featureSubtitle}>
-          {subtitle}
-        </Text>
-      </View>
+    <View
+      style={
+        styles.googleLogo
+      }
+    >
+      <Text
+        style={
+          styles.googleG
+        }
+      >
+        G
+      </Text>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: '#F5FAFE',
-  },
+const styles =
+  StyleSheet.create({
+    root: {
+      flex:
+        1,
 
-  background: {
-    flex: 1,
-    width: '100%',
-    height: '100%',
-  },
-
-  screen: {
-    flex: 1,
-  },
-
-  content: {
-    flex: 1,
-    paddingHorizontal: 27,
-  },
-
-  /*
-   * Logo is inside login-bg.png.
-   *
-   * Reduced from 205 because the previous
-   * version created too much vertical space.
-   */
-
-  logoSpace: {
-    height: 185,
-  },
-
-  expenseText: {
-    textAlign: 'center',
-
-    fontSize: 9.5,
-    fontWeight: '500',
-
-    letterSpacing: 6,
-
-    color: '#6E8BA5',
-  },
-
-  goldLine: {
-    alignSelf: 'center',
-
-    width: 48,
-    height: 2,
-
-    marginTop: 13,
-
-    borderRadius: 10,
-
-    backgroundColor: '#DCA52E',
-  },
-
-  welcomeSection: {
-    alignItems: 'center',
-
-    marginTop: 21,
-  },
-
-  welcome: {
-    fontSize: 32,
-    lineHeight: 38,
-
-    fontWeight: '700',
-
-    color: '#06345C',
-  },
-
-  subtitle: {
-    marginTop: 7,
-
-    textAlign: 'center',
-
-    fontSize: 14.5,
-    lineHeight: 20,
-
-    color: '#42637F',
-  },
-
-  microsoftButton: {
-    marginTop: 22,
-
-    borderRadius: 17,
-
-    overflow: 'hidden',
-
-    elevation: 4,
-
-    shadowColor: '#075F9E',
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-
-    shadowOffset: {
-      width: 0,
-      height: 5,
+      backgroundColor:
+        '#F5FAFE',
     },
-  },
 
-  microsoftGradient: {
-    height: 58,
+    background: {
+      flex:
+        1,
 
-    alignItems: 'center',
-    justifyContent: 'center',
+      width:
+        '100%',
 
-    borderRadius: 17,
-  },
+      height:
+        '100%',
+    },
 
-  microsoftContent: {
-    flexDirection: 'row',
+    screen: {
+      flex:
+        1,
+    },
 
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+    scrollContent: {
+      flexGrow:
+        1,
 
-  microsoftText: {
-    marginLeft: 12,
+      paddingHorizontal:
+        27,
 
-    fontSize: 16.5,
-    fontWeight: '700',
+      paddingBottom:
+        28,
+    },
 
-    color: '#FFFFFF',
-  },
+    /*
+     * Important:
+     * Leave room for the logo embedded
+     * inside login-bg.png.
+     */
+    logoSpace: {
+      height:
+        215,
+    },
 
-  microsoftPressed: {
-    opacity: 0.94,
+    expenseText: {
+      textAlign:
+        'center',
 
-    transform: [
-      {
-        scale: 0.997,
-      },
-    ],
-  },
+      fontSize:
+        9.5,
 
-  microsoftDisabled: {
-    opacity: 0.7,
-  },
+      fontWeight:
+        '500',
 
-  microsoftLogo: {
-    width: 24,
-    height: 24,
+      letterSpacing:
+        6,
 
-    justifyContent: 'space-between',
-  },
+      color:
+        '#6E8BA5',
+    },
 
-  microsoftRow: {
-    flexDirection: 'row',
+    goldLine: {
+      width:
+        48,
 
-    justifyContent: 'space-between',
-  },
+      height:
+        2,
 
-  microsoftSquare: {
-    width: 11,
-    height: 11,
-  },
+      alignSelf:
+        'center',
 
-  microsoftRed: {
-    backgroundColor: '#F35325',
-  },
+      marginTop:
+        10,
 
-  microsoftGreen: {
-    backgroundColor: '#81BC06',
-  },
+      borderRadius:
+        10,
 
-  microsoftBlue: {
-    backgroundColor: '#05A6F0',
-  },
+      backgroundColor:
+        '#DCA52E',
+    },
 
-  microsoftYellow: {
-    backgroundColor: '#FFBA08',
-  },
+    welcomeSection: {
+      alignItems:
+        'center',
 
-  error: {
-    marginTop: 8,
+      marginTop:
+        15,
+    },
 
-    paddingHorizontal: 12,
+    welcome: {
+      fontSize:
+        29,
 
-    textAlign: 'center',
+      lineHeight:
+        35,
 
-    fontSize: 11.5,
-    lineHeight: 16,
+      fontWeight:
+        '700',
 
-    color: '#B42318',
-  },
+      color:
+        '#06345C',
+    },
 
-  /*
-   * Slightly higher and tighter than before
-   * so the mountains do not interfere
-   * with the last feature.
-   */
+    subtitle: {
+      marginTop:
+        4,
 
-  features: {
-    marginTop: 19,
-  },
+      textAlign:
+        'center',
 
-  featureRow: {
-    minHeight: 58,
+      fontSize:
+        13,
 
-    marginBottom: 12,
+      lineHeight:
+        18,
 
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
+      color:
+        '#42637F',
+    },
 
-  featureIcon: {
-    width: 49,
-    height: 49,
+    providerWrapper: {
+      marginTop:
+        18,
 
-    borderRadius: 25,
+      borderRadius:
+        16,
 
-    alignItems: 'center',
-    justifyContent: 'center',
+      overflow:
+        'hidden',
 
-    marginRight: 14,
+      elevation:
+        3,
+    },
 
-    backgroundColor:
-      'rgba(220,238,250,0.93)',
-  },
+    microsoftButton: {
+      height:
+        54,
 
-  featureContent: {
-    flex: 1,
-  },
+      paddingHorizontal:
+        20,
 
-  featureTitle: {
-    fontSize: 14.5,
-    fontWeight: '700',
+      flexDirection:
+        'row',
 
-    color: '#07365F',
-  },
+      alignItems:
+        'center',
 
-  featureSubtitle: {
-    marginTop: 2,
+      justifyContent:
+        'center',
 
-    fontSize: 12,
-    lineHeight: 16,
+      borderRadius:
+        16,
+    },
 
-    color: '#4E6F8B',
-  },
+    microsoftLogo: {
+      width:
+        24,
 
-  footer: {
-    position: 'absolute',
+      height:
+        24,
 
-    left: 20,
-    right: 20,
-    bottom: 21,
+      marginRight:
+        12,
 
-    alignItems: 'center',
-  },
+      justifyContent:
+        'space-between',
+    },
 
-  footerText: {
-    textAlign: 'center',
+    microsoftRow: {
+      flexDirection:
+        'row',
 
-    fontSize: 7.2,
-    fontWeight: '600',
+      justifyContent:
+        'space-between',
+    },
 
-    letterSpacing: 1.45,
+    microsoftSquare: {
+      width:
+        11,
 
-    color: '#315A7D',
-  },
+      height:
+        11,
+    },
 
-  footerLine: {
-    width: 42,
-    height: 2,
+    red: {
+      backgroundColor:
+        '#F35325',
+    },
 
-    marginTop: 9,
+    green: {
+      backgroundColor:
+        '#81BC06',
+    },
 
-    borderRadius: 10,
+    blue: {
+      backgroundColor:
+        '#05A6F0',
+    },
 
-    backgroundColor: '#DCA52E',
-  },
-});
+    yellow: {
+      backgroundColor:
+        '#FFBA08',
+    },
+
+    microsoftText: {
+      fontSize:
+        15.5,
+
+      fontWeight:
+        '700',
+
+      color:
+        '#FFFFFF',
+    },
+
+    googleButton: {
+      height:
+        54,
+
+      marginTop:
+        10,
+
+      paddingHorizontal:
+        20,
+
+      flexDirection:
+        'row',
+
+      alignItems:
+        'center',
+
+      justifyContent:
+        'center',
+
+      borderRadius:
+        16,
+
+      borderWidth:
+        1.2,
+
+      borderColor:
+        '#C7D9E6',
+
+      backgroundColor:
+        'rgba(255,255,255,0.94)',
+
+      elevation:
+        1,
+    },
+
+    googlePressed: {
+      backgroundColor:
+        '#F5F9FC',
+    },
+
+    googleLogo: {
+      width:
+        25,
+
+      height:
+        25,
+
+      marginRight:
+        12,
+
+      alignItems:
+        'center',
+
+      justifyContent:
+        'center',
+    },
+
+    googleG: {
+      fontSize:
+        21,
+
+      fontWeight:
+        '700',
+
+      color:
+        '#4285F4',
+    },
+
+    googleText: {
+      fontSize:
+        15.5,
+
+      fontWeight:
+        '700',
+
+      color:
+        '#183F60',
+    },
+
+    dividerRow: {
+      marginTop:
+        12,
+
+      flexDirection:
+        'row',
+
+      alignItems:
+        'center',
+    },
+
+    dividerLine: {
+      flex:
+        1,
+
+      height:
+        1,
+
+      backgroundColor:
+        'rgba(91,126,151,0.30)',
+    },
+
+    dividerText: {
+      marginHorizontal:
+        13,
+
+      fontSize:
+        10.5,
+
+      fontWeight:
+        '700',
+
+      color:
+        '#577790',
+    },
+
+    workEmailLabel: {
+      marginTop:
+        8,
+
+      marginBottom:
+        6,
+
+      textAlign:
+        'center',
+
+      fontSize:
+        12.5,
+
+      fontWeight:
+        '700',
+
+      color:
+        '#173F60',
+    },
+
+    emailInputContainer: {
+      height:
+        48,
+
+      paddingHorizontal:
+        15,
+
+      flexDirection:
+        'row',
+
+      alignItems:
+        'center',
+
+      borderRadius:
+        14,
+
+      borderWidth:
+        1.2,
+
+      borderColor:
+        '#BFD3E1',
+
+      backgroundColor:
+        'rgba(255,255,255,0.94)',
+    },
+
+    emailInput: {
+      flex:
+        1,
+
+      height:
+        '100%',
+
+      marginLeft:
+        10,
+
+      fontSize:
+        14,
+
+      color:
+        '#163D5C',
+    },
+
+    emailButton: {
+      height:
+        48,
+
+      marginTop:
+        8,
+
+      flexDirection:
+        'row',
+
+      gap:
+        8,
+
+      alignItems:
+        'center',
+
+      justifyContent:
+        'center',
+
+      borderRadius:
+        14,
+
+      backgroundColor:
+        '#0878BF',
+
+      elevation:
+        2,
+    },
+
+    emailButtonPressed: {
+      opacity:
+        0.9,
+    },
+
+    emailButtonText: {
+      fontSize:
+        14,
+
+      fontWeight:
+        '700',
+
+      color:
+        '#FFFFFF',
+    },
+
+    error: {
+      marginTop:
+        8,
+
+      textAlign:
+        'center',
+
+      fontSize:
+        11,
+
+      lineHeight:
+        15,
+
+      color:
+        '#B42318',
+    },
+
+    infoCard: {
+      marginTop:
+        12,
+
+      paddingHorizontal:
+        14,
+
+      paddingVertical:
+        10,
+
+      flexDirection:
+        'row',
+
+      alignItems:
+        'center',
+
+      borderRadius:
+        17,
+
+      backgroundColor:
+        'rgba(232,244,251,0.90)',
+    },
+
+    infoIcon: {
+      width:
+        40,
+
+      height:
+        40,
+
+      borderRadius:
+        14,
+
+      alignItems:
+        'center',
+
+      justifyContent:
+        'center',
+
+      backgroundColor:
+        'rgba(215,235,247,0.96)',
+    },
+
+    infoContent: {
+      flex:
+        1,
+
+      marginLeft:
+        11,
+    },
+
+    infoTitle: {
+      fontSize:
+        12.5,
+
+      fontWeight:
+        '700',
+
+      color:
+        '#174966',
+    },
+
+    infoSubtitle: {
+      marginTop:
+        2,
+
+      fontSize:
+        10.2,
+
+      lineHeight:
+        14,
+
+      color:
+        '#648196',
+    },
+
+    accessText: {
+      marginTop:
+        8,
+
+      textAlign:
+        'center',
+
+      fontSize:
+        10.5,
+
+      fontWeight:
+        '500',
+
+      color:
+        '#56758D',
+    },
+
+    footer: {
+      marginTop:
+        22,
+
+      paddingBottom:
+        4,
+
+      alignItems:
+        'center',
+    },
+
+    footerText: {
+      textAlign:
+        'center',
+
+      fontSize:
+        7.2,
+
+      fontWeight:
+        '600',
+
+      letterSpacing:
+        1.45,
+
+      color:
+        '#315A7D',
+    },
+
+    footerLine: {
+      width:
+        42,
+
+      height:
+        2,
+
+      marginTop:
+        9,
+
+      borderRadius:
+        10,
+
+      backgroundColor:
+        '#DCA52E',
+    },
+  });
