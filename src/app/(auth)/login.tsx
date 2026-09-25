@@ -33,8 +33,6 @@ import {
 } from 'react-native';
 
 import {
-  signInWithGoogle,
-  signInWithMicrosoft,
   signInWithWorkEmail,
 } from '../../../services/auth';
 
@@ -42,11 +40,6 @@ const backgroundImage =
   require(
     '../../../assets/images/login-bg.png',
   );
-
-type Provider =
-  | 'microsoft'
-  | 'google'
-  | 'email';
 
 export default function LoginScreen() {
   const [
@@ -56,12 +49,28 @@ export default function LoginScreen() {
     useState(false);
 
   const [
-    activeProvider,
-    setActiveProvider,
+    workEmail,
+    setWorkEmail,
   ] =
-    useState<Provider | null>(
-      null,
-    );
+    useState('');
+
+  const [
+    password,
+    setPassword,
+  ] =
+    useState('');
+
+  const [
+    showPassword,
+    setShowPassword,
+  ] =
+    useState(false);
+
+  const [
+    isSigningIn,
+    setIsSigningIn,
+  ] =
+    useState(false);
 
   const [
     loginError,
@@ -69,19 +78,17 @@ export default function LoginScreen() {
   ] =
     useState('');
 
-  const [
-    workEmail,
-    setWorkEmail,
-  ] =
-    useState('');
-
   const screenOpacity =
     useRef(
-      new Animated.Value(0),
+      new Animated.Value(
+        0,
+      ),
     ).current;
 
   function handleBackgroundLoaded() {
-    if (backgroundReady) {
+    if (
+      backgroundReady
+    ) {
       return;
     }
 
@@ -104,129 +111,72 @@ export default function LoginScreen() {
     ).start();
   }
 
-  function goToProcessing(
-    provider:
-      Provider,
-
-    user: {
-      name: string;
-      email: string;
-    },
-  ) {
-    router.replace({
-      pathname:
-        '/(auth)/auth-processing',
-
-      params: {
-        provider,
-
-        name:
-          user.name,
-
-        email:
-          user.email,
-      },
-    });
-  }
-
-  async function handleProviderSignIn(
-    provider:
-      | 'microsoft'
-      | 'google',
-  ) {
-    if (activeProvider) {
+  async function handleSignIn() {
+    if (
+      isSigningIn
+    ) {
       return;
     }
 
     try {
-      setLoginError('');
-
-      setActiveProvider(
-        provider,
-      );
-
-      const user =
-        provider ===
-        'microsoft'
-          ? await signInWithMicrosoft()
-          : await signInWithGoogle();
-
-      goToProcessing(
-        provider,
-        user,
-      );
-    } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : '';
-
-      /*
-       * Normal Google cancellation should
-       * NOT create a red LogBox.
-       */
-      if (
-        message ===
-        'GOOGLE_SIGN_IN_CANCELLED'
-      ) {
-        setLoginError('');
-
-        return;
-      }
-
-      console.log(
-        `${provider} sign-in issue:`,
-        error,
-      );
-
       setLoginError(
-        message ||
-          'Unable to sign in. Please try again.',
+        '',
       );
-    } finally {
-      setActiveProvider(
-        null,
-      );
-    }
-  }
 
-  async function handleWorkEmail() {
-    if (activeProvider) {
-      return;
-    }
-
-    try {
-      setLoginError('');
-
-      setActiveProvider(
-        'email',
+      setIsSigningIn(
+        true,
       );
 
       const user =
         await signInWithWorkEmail(
           workEmail,
+          password,
         );
 
-      goToProcessing(
-        'email',
-        user,
-      );
+      router.replace({
+        pathname:
+          '/(auth)/auth-processing',
+
+        params: {
+          provider:
+            'email',
+
+          name:
+            user.name,
+
+          email:
+            user.email,
+        },
+      });
     } catch (error) {
       const message =
         error instanceof Error
           ? error.message
-          : '';
+          : 'Unable to sign in.';
+
+      console.log(
+        'Work email sign-in:',
+        error,
+      );
 
       setLoginError(
-        message ||
-          'Unable to continue with work email.',
+        message,
       );
     } finally {
-      setActiveProvider(
-        null,
+      setIsSigningIn(
+        false,
       );
     }
   }
+
+  const canSubmit =
+    workEmail
+      .trim()
+      .length >
+      0 &&
+    password.length >
+      0 &&
+    !isSigningIn;
 
   return (
     <View
@@ -254,6 +204,7 @@ export default function LoginScreen() {
           <Animated.View
             style={[
               styles.screen,
+
               {
                 opacity:
                   screenOpacity,
@@ -280,8 +231,6 @@ export default function LoginScreen() {
                   false
                 }
               >
-                {/* Logo is embedded in login-bg.png */}
-
                 <View
                   style={
                     styles.logoSpace
@@ -320,224 +269,209 @@ export default function LoginScreen() {
                       styles.subtitle
                     }
                   >
-                    Sign in with your company account
+                    Sign in with your
+                    Sky Avenir work account
                     {'\n'}
                     to continue
                   </Text>
                 </View>
 
-                {/* MICROSOFT */}
-
-                <Pressable
-                  disabled={
-                    activeProvider !==
-                    null
-                  }
-                  onPress={() =>
-                    handleProviderSignIn(
-                      'microsoft',
-                    )
-                  }
+                <View
                   style={
-                    styles.providerWrapper
+                    styles.loginCard
                   }
                 >
-                  <LinearGradient
-                    colors={[
-                      '#075FA8',
-                      '#1385D2',
-                    ]}
-                    start={{
-                      x:
-                        0,
-                      y:
-                        0,
-                    }}
-                    end={{
-                      x:
-                        1,
-                      y:
-                        0,
-                    }}
+                  <Text
                     style={
-                      styles.microsoftButton
+                      styles.fieldLabel
                     }
                   >
-                    <MicrosoftLogo />
+                    Work Email
+                  </Text>
 
-                    <Text
+                  <View
+                    style={
+                      styles.inputContainer
+                    }
+                  >
+                    <Ionicons
+                      name="mail-outline"
+                      size={20}
+                      color="#527590"
+                    />
+
+                    <TextInput
+                      value={
+                        workEmail
+                      }
+                      onChangeText={
+                        setWorkEmail
+                      }
+                      placeholder="name@skyavenir.com"
+                      placeholderTextColor="#8DA3B5"
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                      autoCorrect={
+                        false
+                      }
+                      autoComplete="email"
+                      editable={
+                        !isSigningIn
+                      }
+                      returnKeyType="next"
                       style={
-                        styles.microsoftText
+                        styles.input
+                      }
+                    />
+                  </View>
+
+                  <Text
+                    style={[
+                      styles.fieldLabel,
+                      styles.passwordLabel,
+                    ]}
+                  >
+                    Password
+                  </Text>
+
+                  <View
+                    style={
+                      styles.inputContainer
+                    }
+                  >
+                    <Ionicons
+                      name="lock-closed-outline"
+                      size={20}
+                      color="#527590"
+                    />
+
+                    <TextInput
+                      value={
+                        password
+                      }
+                      onChangeText={
+                        setPassword
+                      }
+                      placeholder="Enter your password"
+                      placeholderTextColor="#8DA3B5"
+                      secureTextEntry={
+                        !showPassword
+                      }
+                      autoCapitalize="none"
+                      autoCorrect={
+                        false
+                      }
+                      autoComplete="password"
+                      editable={
+                        !isSigningIn
+                      }
+                      returnKeyType="done"
+                      onSubmitEditing={
+                        handleSignIn
+                      }
+                      style={
+                        styles.input
+                      }
+                    />
+
+                    <Pressable
+                      onPress={() =>
+                        setShowPassword(
+                          (current) =>
+                            !current,
+                        )
+                      }
+                      hitSlop={
+                        10
                       }
                     >
-                      {activeProvider ===
-                      'microsoft'
-                        ? 'Signing in...'
-                        : 'Continue with Microsoft'}
-                    </Text>
-                  </LinearGradient>
-                </Pressable>
+                      <Ionicons
+                        name={
+                          showPassword
+                            ? 'eye-off-outline'
+                            : 'eye-outline'
+                        }
+                        size={21}
+                        color="#527590"
+                      />
+                    </Pressable>
+                  </View>
 
-                {/* GOOGLE */}
-
-                <Pressable
-                  disabled={
-                    activeProvider !==
-                    null
-                  }
-                  onPress={() =>
-                    handleProviderSignIn(
-                      'google',
-                    )
-                  }
-                  style={({
-                    pressed,
-                  }) => [
-                    styles.googleButton,
-
-                    pressed &&
-                      !activeProvider &&
-                      styles.googlePressed,
-                  ]}
-                >
-                  <GoogleLogo />
-
-                  <Text
+                  <Pressable
+                    disabled={
+                      !canSubmit
+                    }
+                    onPress={
+                      handleSignIn
+                    }
                     style={
-                      styles.googleText
+                      styles.signInWrapper
                     }
                   >
-                    {activeProvider ===
-                    'google'
-                      ? 'Opening Google...'
-                      : 'Continue with Google'}
-                  </Text>
-                </Pressable>
+                    <LinearGradient
+                      colors={[
+                        '#075FA8',
+                        '#1385D2',
+                      ]}
+                      start={{
+                        x:
+                          0,
+                        y:
+                          0,
+                      }}
+                      end={{
+                        x:
+                          1,
+                        y:
+                          0,
+                      }}
+                      style={[
+                        styles.signInButton,
 
-                {/* DIVIDER */}
+                        !canSubmit &&
+                          styles.signInButtonDisabled,
+                      ]}
+                    >
+                      <Ionicons
+                        name="log-in-outline"
+                        size={21}
+                        color="#FFFFFF"
+                      />
 
-                <View
-                  style={
-                    styles.dividerRow
-                  }
-                >
-                  <View
-                    style={
-                      styles.dividerLine
-                    }
-                  />
+                      <Text
+                        style={
+                          styles.signInText
+                        }
+                      >
+                        {isSigningIn
+                          ? 'Signing in...'
+                          : 'Sign In'}
+                      </Text>
+                    </LinearGradient>
+                  </Pressable>
 
-                  <Text
-                    style={
-                      styles.dividerText
-                    }
-                  >
-                    OR
-                  </Text>
+                  {loginError ? (
+                    <View
+                      style={
+                        styles.errorBox
+                      }
+                    >
+                      <Ionicons
+                        name="alert-circle-outline"
+                        size={17}
+                        color="#B42318"
+                      />
 
-                  <View
-                    style={
-                      styles.dividerLine
-                    }
-                  />
+                      <Text
+                        style={
+                          styles.errorText
+                        }
+                      >
+                        {loginError}
+                      </Text>
+                    </View>
+                  ) : null}
                 </View>
-
-                {/* WORK EMAIL */}
-
-                <Text
-                  style={
-                    styles.workEmailLabel
-                  }
-                >
-                  Work Email
-                </Text>
-
-                <View
-                  style={
-                    styles.emailInputContainer
-                  }
-                >
-                  <Ionicons
-                    name="mail-outline"
-                    size={20}
-                    color="#527590"
-                  />
-
-                  <TextInput
-                    value={
-                      workEmail
-                    }
-                    onChangeText={
-                      setWorkEmail
-                    }
-                    placeholder="name@skyavenir.com"
-                    placeholderTextColor="#8DA3B5"
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                    autoCorrect={
-                      false
-                    }
-                    editable={
-                      activeProvider ===
-                      null
-                    }
-                    returnKeyType="done"
-                    onSubmitEditing={
-                      handleWorkEmail
-                    }
-                    style={
-                      styles.emailInput
-                    }
-                  />
-                </View>
-
-                <Pressable
-                  disabled={
-                    activeProvider !==
-                    null
-                  }
-                  onPress={
-                    handleWorkEmail
-                  }
-                  style={({
-                    pressed,
-                  }) => [
-                    styles.emailButton,
-
-                    pressed &&
-                      !activeProvider &&
-                      styles.emailButtonPressed,
-                  ]}
-                >
-                  <Ionicons
-                    name="arrow-forward-circle-outline"
-                    size={21}
-                    color="#FFFFFF"
-                  />
-
-                  <Text
-                    style={
-                      styles.emailButtonText
-                    }
-                  >
-                    {activeProvider ===
-                    'email'
-                      ? 'Verifying...'
-                      : 'Continue with Work Email'}
-                  </Text>
-                </Pressable>
-
-                {loginError ? (
-                  <Text
-                    style={
-                      styles.error
-                    }
-                  >
-                    {loginError}
-                  </Text>
-                ) : null}
-
-                {/* SECURITY */}
 
                 <View
                   style={
@@ -574,9 +508,8 @@ export default function LoginScreen() {
                         styles.infoSubtitle
                       }
                     >
-                      Use your approved Microsoft,
-                      Google or company work email
-                      account.
+                      Sign in using your approved
+                      Sky Avenir employee account.
                     </Text>
                   </View>
                 </View>
@@ -588,8 +521,6 @@ export default function LoginScreen() {
                 >
                   Need access? Contact your administrator.
                 </Text>
-
-                {/* FOOTER */}
 
                 <View
                   style={
@@ -615,74 +546,6 @@ export default function LoginScreen() {
           </Animated.View>
         )}
       </ImageBackground>
-    </View>
-  );
-}
-
-function MicrosoftLogo() {
-  return (
-    <View
-      style={
-        styles.microsoftLogo
-      }
-    >
-      <View
-        style={
-          styles.microsoftRow
-        }
-      >
-        <View
-          style={[
-            styles.microsoftSquare,
-            styles.red,
-          ]}
-        />
-
-        <View
-          style={[
-            styles.microsoftSquare,
-            styles.green,
-          ]}
-        />
-      </View>
-
-      <View
-        style={
-          styles.microsoftRow
-        }
-      >
-        <View
-          style={[
-            styles.microsoftSquare,
-            styles.blue,
-          ]}
-        />
-
-        <View
-          style={[
-            styles.microsoftSquare,
-            styles.yellow,
-          ]}
-        />
-      </View>
-    </View>
-  );
-}
-
-function GoogleLogo() {
-  return (
-    <View
-      style={
-        styles.googleLogo
-      }
-    >
-      <Text
-        style={
-          styles.googleG
-        }
-      >
-        G
-      </Text>
     </View>
   );
 }
@@ -724,11 +587,6 @@ const styles =
         28,
     },
 
-    /*
-     * Important:
-     * Leave room for the logo embedded
-     * inside login-bg.png.
-     */
     logoSpace: {
       height:
         215,
@@ -810,225 +668,32 @@ const styles =
         '#42637F',
     },
 
-    providerWrapper: {
+    loginCard: {
       marginTop:
-        18,
-
-      borderRadius:
-        16,
-
-      overflow:
-        'hidden',
-
-      elevation:
-        3,
-    },
-
-    microsoftButton: {
-      height:
-        54,
-
-      paddingHorizontal:
         20,
 
-      flexDirection:
-        'row',
-
-      alignItems:
-        'center',
-
-      justifyContent:
-        'center',
+      padding:
+        17,
 
       borderRadius:
-        16,
-    },
-
-    microsoftLogo: {
-      width:
-        24,
-
-      height:
-        24,
-
-      marginRight:
-        12,
-
-      justifyContent:
-        'space-between',
-    },
-
-    microsoftRow: {
-      flexDirection:
-        'row',
-
-      justifyContent:
-        'space-between',
-    },
-
-    microsoftSquare: {
-      width:
-        11,
-
-      height:
-        11,
-    },
-
-    red: {
-      backgroundColor:
-        '#F35325',
-    },
-
-    green: {
-      backgroundColor:
-        '#81BC06',
-    },
-
-    blue: {
-      backgroundColor:
-        '#05A6F0',
-    },
-
-    yellow: {
-      backgroundColor:
-        '#FFBA08',
-    },
-
-    microsoftText: {
-      fontSize:
-        15.5,
-
-      fontWeight:
-        '700',
-
-      color:
-        '#FFFFFF',
-    },
-
-    googleButton: {
-      height:
-        54,
-
-      marginTop:
-        10,
-
-      paddingHorizontal:
         20,
-
-      flexDirection:
-        'row',
-
-      alignItems:
-        'center',
-
-      justifyContent:
-        'center',
-
-      borderRadius:
-        16,
 
       borderWidth:
-        1.2,
+        1,
 
       borderColor:
-        '#C7D9E6',
+        'rgba(183,207,223,0.76)',
 
       backgroundColor:
         'rgba(255,255,255,0.94)',
 
       elevation:
-        1,
+        2,
     },
 
-    googlePressed: {
-      backgroundColor:
-        '#F5F9FC',
-    },
-
-    googleLogo: {
-      width:
-        25,
-
-      height:
-        25,
-
-      marginRight:
-        12,
-
-      alignItems:
-        'center',
-
-      justifyContent:
-        'center',
-    },
-
-    googleG: {
-      fontSize:
-        21,
-
-      fontWeight:
-        '700',
-
-      color:
-        '#4285F4',
-    },
-
-    googleText: {
-      fontSize:
-        15.5,
-
-      fontWeight:
-        '700',
-
-      color:
-        '#183F60',
-    },
-
-    dividerRow: {
-      marginTop:
-        12,
-
-      flexDirection:
-        'row',
-
-      alignItems:
-        'center',
-    },
-
-    dividerLine: {
-      flex:
-        1,
-
-      height:
-        1,
-
-      backgroundColor:
-        'rgba(91,126,151,0.30)',
-    },
-
-    dividerText: {
-      marginHorizontal:
-        13,
-
-      fontSize:
-        10.5,
-
-      fontWeight:
-        '700',
-
-      color:
-        '#577790',
-    },
-
-    workEmailLabel: {
-      marginTop:
-        8,
-
+    fieldLabel: {
       marginBottom:
-        6,
-
-      textAlign:
-        'center',
+        7,
 
       fontSize:
         12.5,
@@ -1040,12 +705,17 @@ const styles =
         '#173F60',
     },
 
-    emailInputContainer: {
+    passwordLabel: {
+      marginTop:
+        14,
+    },
+
+    inputContainer: {
       height:
-        48,
+        52,
 
       paddingHorizontal:
-        15,
+        14,
 
       flexDirection:
         'row',
@@ -1063,10 +733,10 @@ const styles =
         '#BFD3E1',
 
       backgroundColor:
-        'rgba(255,255,255,0.94)',
+        '#FFFFFF',
     },
 
-    emailInput: {
+    input: {
       flex:
         1,
 
@@ -1083,18 +753,26 @@ const styles =
         '#163D5C',
     },
 
-    emailButton: {
-      height:
-        48,
-
+    signInWrapper: {
       marginTop:
-        8,
+        18,
+
+      borderRadius:
+        15,
+
+      overflow:
+        'hidden',
+
+      elevation:
+        3,
+    },
+
+    signInButton: {
+      height:
+        54,
 
       flexDirection:
         'row',
-
-      gap:
-        8,
 
       alignItems:
         'center',
@@ -1102,24 +780,21 @@ const styles =
       justifyContent:
         'center',
 
+      gap:
+        8,
+
       borderRadius:
-        14,
-
-      backgroundColor:
-        '#0878BF',
-
-      elevation:
-        2,
+        15,
     },
 
-    emailButtonPressed: {
+    signInButtonDisabled: {
       opacity:
-        0.9,
+        0.55,
     },
 
-    emailButtonText: {
+    signInText: {
       fontSize:
-        14,
+        15,
 
       fontWeight:
         '700',
@@ -1128,18 +803,41 @@ const styles =
         '#FFFFFF',
     },
 
-    error: {
+    errorBox: {
       marginTop:
-        8,
+        13,
 
-      textAlign:
-        'center',
+      paddingHorizontal:
+        11,
+
+      paddingVertical:
+        9,
+
+      flexDirection:
+        'row',
+
+      alignItems:
+        'flex-start',
+
+      gap:
+        7,
+
+      borderRadius:
+        12,
+
+      backgroundColor:
+        '#FFF0EF',
+    },
+
+    errorText: {
+      flex:
+        1,
 
       fontSize:
         11,
 
       lineHeight:
-        15,
+        16,
 
       color:
         '#B42318',
@@ -1147,13 +845,13 @@ const styles =
 
     infoCard: {
       marginTop:
-        12,
+        14,
 
       paddingHorizontal:
         14,
 
       paddingVertical:
-        10,
+        11,
 
       flexDirection:
         'row',
@@ -1223,7 +921,7 @@ const styles =
 
     accessText: {
       marginTop:
-        8,
+        9,
 
       textAlign:
         'center',

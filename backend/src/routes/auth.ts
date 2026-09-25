@@ -3,8 +3,8 @@ import {
 } from 'express';
 
 import {
-  OAuth2Client,
-} from 'google-auth-library';
+  compare,
+} from 'bcryptjs';
 
 import {
   SignJWT,
@@ -19,23 +19,20 @@ import {
 } from '../database/pool.js';
 
 import {
-  resolveUserId,
-} from '../services/userService.js';
+  requireAuth,
+} from '../middleware/auth.js';
 
 import type {
   AuthenticatedUser,
-  AuthProvider,
 } from '../middleware/auth.js';
 
-const router = Router();
-
-const googleClient =
-  new OAuth2Client(
-    env.google.webClientId,
-  );
+const router =
+  Router();
 
 function getSessionSecret() {
-  if (!env.appSessionSecret) {
+  if (
+    !env.appSessionSecret
+  ) {
     throw new Error(
       'APP_SESSION_SECRET is not configured.',
     );
@@ -47,8 +44,11 @@ function getSessionSecret() {
 }
 
 async function createSessionToken(
-  databaseUserId: string,
-  user: AuthenticatedUser,
+  databaseUserId:
+    string,
+
+  user:
+    AuthenticatedUser,
 ) {
   return new SignJWT({
     provider:
@@ -64,7 +64,8 @@ async function createSessionToken(
       user.email,
   })
     .setProtectedHeader({
-      alg: 'HS256',
+      alg:
+        'HS256',
     })
     .setSubject(
       databaseUserId,
@@ -84,113 +85,145 @@ async function createSessionToken(
     );
 }
 
-router.get(
-  '/me',
-  async (_req, res) => {
-    /*
-     * TEMPORARY Microsoft showcase route.
-     * This is NOT real Microsoft authentication.
-     */
-    res.status(501).json({
-      authenticated: false,
-      message:
-        'Microsoft authentication is not configured yet.',
-    });
-  },
-);
+/*
+ * ------------------------------------------------
+ * POST /api/auth/login
+ * ------------------------------------------------
+ */
 
 router.post(
-  '/google',
-  async (req, res) => {
+  '/login',
+
+  async (
+    req,
+    res,
+  ) => {
     try {
-      const idToken =
-        typeof req.body?.idToken ===
+      const email =
+        typeof req.body?.email ===
         'string'
-          ? req.body.idToken.trim()
+          ? req.body.email
+              .trim()
+              .toLowerCase()
           : '';
 
-      if (!idToken) {
-        res.status(400).json({
-          authenticated: false,
-          message:
-            'Google ID token is required.',
-        });
-
-        return;
-      }
+      const password =
+        typeof req.body?.password ===
+        'string'
+          ? req.body.password
+          : '';
 
       if (
-        !env.google.webClientId
-      ) {
-        res.status(500).json({
-          authenticated: false,
-          message:
-            'Google authentication is not configured.',
-        });
-
-        return;
-      }
-
-      const ticket =
-        await googleClient
-          .verifyIdToken({
-            idToken,
-
-            audience:
-              env.google.webClientId,
-          });
-
-      const payload =
-        ticket.getPayload();
-
-      if (!payload) {
-        res.status(401).json({
-          authenticated: false,
-          message:
-            'Invalid Google identity.',
-        });
-
-        return;
-      }
-
-      const providerUserId =
-        payload.sub;
-
-      const email =
-        payload.email
-          ?.trim()
-          .toLowerCase();
-
-      const name =
-        payload.name
-          ?.trim();
-
-      if (
-        !providerUserId ||
         !email ||
-        !payload.email_verified
+        !password
       ) {
-        res.status(401).json({
-          authenticated: false,
+        res.status(
+          400,
+        ).json({
+          authenticated:
+            false,
+
           message:
-            'Google account could not be verified.',
+            'Work email and password are required.',
         });
 
         return;
       }
 
-      /*
-       * Internal Sky Avenir account restriction.
-       */
       if (
         !email.endsWith(
           '@skyavenir.com',
         )
       ) {
-        res.status(403).json({
-          authenticated: false,
+        res.status(
+          403,
+        ).json({
+          authenticated:
+            false,
+
           message:
-            'Please use your Sky Avenir work account.',
+            'Please use your Sky Avenir work email.',
+        });
+
+        return;
+      }
+
+      const result =
+        await pool.query<{
+          id:
+            string;
+
+          provider_user_id:
+            string;
+
+          email:
+            string;
+
+          name:
+            string;
+
+          password_hash:
+            string | null;
+        }>(
+          `
+            SELECT
+              id,
+              provider_user_id,
+              email,
+              name,
+              password_hash
+            FROM users
+            WHERE
+              auth_provider = 'email'
+              AND LOWER(email) = LOWER($1)
+            LIMIT 1
+          `,
+          [
+            email,
+          ],
+        );
+
+      const row =
+        result.rows[0];
+
+      /*
+       * Keep this intentionally generic.
+       * Do not reveal whether an email exists.
+       */
+      if (
+        !row ||
+        !row.password_hash
+      ) {
+        res.status(
+          401,
+        ).json({
+          authenticated:
+            false,
+
+          message:
+            'Invalid work email or password.',
+        });
+
+        return;
+      }
+
+      const validPassword =
+        await compare(
+          password,
+          row.password_hash,
+        );
+
+      if (
+        !validPassword
+      ) {
+        res.status(
+          401,
+        ).json({
+          authenticated:
+            false,
+
+          message:
+            'Invalid work email or password.',
         });
 
         return;
@@ -198,86 +231,112 @@ router.post(
 
       const authenticatedUser:
         AuthenticatedUser = {
-          provider:
-            'google',
+          id:
+            row.id,
 
-          providerUserId,
+          provider:
+            'email',
+
+          providerUserId:
+            row.provider_user_id,
 
           name:
-            name ||
-            email.split('@')[0],
+            row.name,
 
-          email,
+          email:
+            row.email
+              .trim()
+              .toLowerCase(),
         };
-
-      const client =
-        await pool.connect();
-
-      let databaseUserId:
-        string;
-
-      try {
-        await client.query(
-          'BEGIN',
-        );
-
-        databaseUserId =
-          await resolveUserId(
-            client,
-            authenticatedUser,
-          );
-
-        await client.query(
-          'COMMIT',
-        );
-      } catch (error) {
-        await client.query(
-          'ROLLBACK',
-        );
-
-        throw error;
-      } finally {
-        client.release();
-      }
 
       const accessToken =
         await createSessionToken(
-          databaseUserId,
+          row.id,
           authenticatedUser,
         );
 
       res.json({
-        authenticated: true,
+        authenticated:
+          true,
 
         accessToken,
 
         user: {
           id:
-            databaseUserId,
+            row.id,
 
           provider:
-            'google' as AuthProvider,
+            'email',
 
-          providerUserId,
+          providerUserId:
+            row.provider_user_id,
 
           name:
-            authenticatedUser.name,
+            row.name,
 
-          email,
+          email:
+            authenticatedUser.email,
         },
       });
     } catch (error) {
       console.error(
-        'Google authentication failed:',
+        'Email authentication failed:',
         error,
       );
 
-      res.status(401).json({
-        authenticated: false,
+      res.status(
+        500,
+      ).json({
+        authenticated:
+          false,
+
         message:
-          'Google authentication failed.',
+          'Unable to sign in at this time.',
       });
     }
+  },
+);
+
+/*
+ * ------------------------------------------------
+ * GET /api/auth/me
+ * ------------------------------------------------
+ *
+ * Useful later for checking an existing session.
+ * ------------------------------------------------
+ */
+
+router.get(
+  '/me',
+  requireAuth,
+
+  (
+    req,
+    res,
+  ) => {
+    if (
+      !req.user
+    ) {
+      res.status(
+        401,
+      ).json({
+        authenticated:
+          false,
+
+        message:
+          'Authentication required.',
+      });
+
+      return;
+    }
+
+    res.json({
+      authenticated:
+        true,
+
+      user:
+        req.user,
+    });
   },
 );
 
