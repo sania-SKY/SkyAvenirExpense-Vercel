@@ -33,6 +33,34 @@ export const env = {
   appSessionSecret:
     process.env.APP_SESSION_SECRET ?? '',
 
+    email: {
+  host:
+    process.env.SMTP_HOST ?? '',
+
+  port:
+    Number(
+      process.env.SMTP_PORT ?? 465,
+    ),
+
+  secure:
+    process.env.SMTP_SECURE === 'true',
+
+  user:
+    process.env.SMTP_USER ?? '',
+
+  appPassword:
+    process.env.SMTP_APP_PASSWORD ?? '',
+
+  from:
+    process.env.SMTP_FROM ?? '',
+},
+passwordReset: {
+  codeExpiryMinutes:
+    Number(
+      process.env.PASSWORD_RESET_CODE_EXPIRY_MINUTES ?? 15,
+    ),
+},
+
   allowedWorkEmailDomains:
     parseAllowedWorkEmailDomains(),
 

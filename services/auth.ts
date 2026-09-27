@@ -1,3 +1,5 @@
+import * as SecureStore from 'expo-secure-store';
+
 export type AuthProvider =
   | 'email';
 
@@ -45,10 +47,39 @@ type AuthResponse = {
     string;
 };
 
+type MessageResponse = {
+  message?:
+    string;
+};
+
+type StoredSession = {
+  accessToken:
+    string;
+
+  user:
+    AuthUser;
+};
+
 export type RegisterInput = {
-  name: string;
-  email: string;
-  password: string;
+  name:
+    string;
+
+  email:
+    string;
+
+  password:
+    string;
+};
+
+export type ResetPasswordInput = {
+  email:
+    string;
+
+  code:
+    string;
+
+  newPassword:
+    string;
 };
 
 const API_BASE_URL =
@@ -56,6 +87,9 @@ const API_BASE_URL =
 
 const REQUEST_TIMEOUT_MS =
   15000;
+
+const SESSION_STORAGE_KEY =
+  'sky_avenir_expense_session_v1';
 
 let currentUser:
   AuthUser | null =
@@ -71,7 +105,8 @@ let currentAccessToken:
  * ------------------------------------------------
  */
 
-function requireApiUrl(): string {
+function requireApiUrl():
+  string {
   const value =
     API_BASE_URL?.trim();
 
@@ -94,8 +129,11 @@ function requireApiUrl(): string {
  */
 
 async function fetchWithTimeout(
-  url: string,
-  options: RequestInit = {},
+  url:
+    string,
+
+  options:
+    RequestInit = {},
 ): Promise<Response> {
   const controller =
     new AbortController();
@@ -141,12 +179,13 @@ async function fetchWithTimeout(
 
 /*
  * ------------------------------------------------
- * READ AUTH RESPONSE
+ * RESPONSE HELPERS
  * ------------------------------------------------
  */
 
 async function readAuthResponse(
-  response: Response,
+  response:
+    Response,
 ): Promise<AuthResponse> {
   try {
     return await response.json();
@@ -157,6 +196,17 @@ async function readAuthResponse(
   }
 }
 
+async function readMessageResponse(
+  response:
+    Response,
+): Promise<MessageResponse> {
+  try {
+    return await response.json();
+  } catch {
+    return {};
+  }
+}
+
 /*
  * ------------------------------------------------
  * NORMALIZE USER
@@ -164,7 +214,8 @@ async function readAuthResponse(
  */
 
 function normalizeUser(
-  data: AuthResponse,
+  data:
+    AuthResponse,
 ): AuthUser {
   if (
     !data.authenticated ||
@@ -218,13 +269,57 @@ function normalizeUser(
 
 /*
  * ------------------------------------------------
- * SAVE AUTH SESSION
+ * SECURE SESSION STORAGE
  * ------------------------------------------------
  */
 
-function setAuthenticatedSession(
-  data: AuthResponse,
-): AuthUser {
+async function saveSession(
+  session:
+    StoredSession,
+): Promise<void> {
+  try {
+    await SecureStore.setItemAsync(
+      SESSION_STORAGE_KEY,
+      JSON.stringify(
+        session,
+      ),
+    );
+  } catch (error) {
+    console.error(
+      'Unable to save secure session:',
+      error,
+    );
+
+    throw new Error(
+      'Unable to securely save your session.',
+    );
+  }
+}
+
+async function removeStoredSession():
+  Promise<void> {
+  try {
+    await SecureStore.deleteItemAsync(
+      SESSION_STORAGE_KEY,
+    );
+  } catch (error) {
+    console.warn(
+      'Unable to remove stored session:',
+      error,
+    );
+  }
+}
+
+/*
+ * ------------------------------------------------
+ * SET SESSION
+ * ------------------------------------------------
+ */
+
+async function setAuthenticatedSession(
+  data:
+    AuthResponse,
+): Promise<AuthUser> {
   if (
     !data.accessToken
   ) {
@@ -243,6 +338,29 @@ function setAuthenticatedSession(
 
   currentAccessToken =
     data.accessToken;
+
+  try {
+    await saveSession({
+      user,
+
+      accessToken:
+        data.accessToken,
+    });
+  } catch (error) {
+    /*
+     * If secure persistence fails,
+     * do not leave an inconsistent
+     * in-memory authenticated state.
+     */
+
+    currentUser =
+      null;
+
+    currentAccessToken =
+      null;
+
+    throw error;
+  }
 
   return user;
 }
@@ -271,6 +389,13 @@ export function isSignedIn():
   );
 }
 
+/*
+ * Memory-only clear.
+ *
+ * Kept for compatibility if any existing screen
+ * still imports signOutLocal().
+ */
+
 export function signOutLocal():
   void {
   currentUser =
@@ -281,14 +406,229 @@ export function signOutLocal():
 }
 
 /*
+ * Real sign-out.
+ *
+ * Clears both:
+ * - memory
+ * - encrypted persistent session
+ */
+
+export async function signOut():
+  Promise<void> {
+  currentUser =
+    null;
+
+  currentAccessToken =
+    null;
+
+  await removeStoredSession();
+}
+
+/*
+ * ------------------------------------------------
+ * RESTORE SESSION
+ * ------------------------------------------------
+ *
+ * Called when the app starts.
+ *
+ * 1. Read session from SecureStore.
+ * 2. Restore it in memory.
+ * 3. Validate token with /api/auth/me.
+ *
+ * Invalid/expired token:
+ *   -> clear session
+ *   -> return null
+ *
+ * Temporary network/server problem:
+ *   -> retain secure local session
+ *   -> avoid unnecessary logout
+ * ------------------------------------------------
+ */
+
+export async function restoreSession():
+  Promise<AuthUser | null> {
+  let rawSession:
+    string | null =
+    null;
+
+  try {
+    rawSession =
+      await SecureStore.getItemAsync(
+        SESSION_STORAGE_KEY,
+      );
+  } catch (error) {
+    console.warn(
+      'Unable to read stored session:',
+      error,
+    );
+
+    return null;
+  }
+
+  if (!rawSession) {
+    return null;
+  }
+
+  let storedSession:
+    StoredSession;
+
+  try {
+    storedSession =
+      JSON.parse(
+        rawSession,
+      ) as StoredSession;
+  } catch {
+    await signOut();
+
+    return null;
+  }
+
+  if (
+    !storedSession ||
+    typeof storedSession.accessToken !==
+      'string' ||
+    !storedSession.accessToken ||
+    !storedSession.user ||
+    typeof storedSession.user.id !==
+      'string' ||
+    typeof storedSession.user.providerUserId !==
+      'string' ||
+    typeof storedSession.user.name !==
+      'string' ||
+    typeof storedSession.user.email !==
+      'string'
+  ) {
+    await signOut();
+
+    return null;
+  }
+
+  currentUser = {
+    id:
+      storedSession.user.id,
+
+    provider:
+      'email',
+
+    providerUserId:
+      storedSession.user.providerUserId,
+
+    name:
+      storedSession.user.name
+        .trim(),
+
+    email:
+      storedSession.user.email
+        .trim()
+        .toLowerCase(),
+  };
+
+  currentAccessToken =
+    storedSession.accessToken;
+
+  try {
+    const apiBaseUrl =
+      requireApiUrl();
+
+    const response =
+      await fetchWithTimeout(
+        `${apiBaseUrl}/api/auth/me`,
+        {
+          method:
+            'GET',
+
+          headers: {
+            Authorization:
+              `Bearer ${storedSession.accessToken}`,
+          },
+        },
+      );
+
+    /*
+     * Token is definitely invalid/expired.
+     */
+
+    if (
+      response.status ===
+        401 ||
+      response.status ===
+        403
+    ) {
+      await signOut();
+
+      return null;
+    }
+
+    /*
+     * Temporary server failure.
+     *
+     * Keep local secure session.
+     */
+
+    if (!response.ok) {
+      return currentUser;
+    }
+
+    const data =
+      await readAuthResponse(
+        response,
+      );
+
+    if (
+      !data.authenticated ||
+      !data.user
+    ) {
+      await signOut();
+
+      return null;
+    }
+
+    const verifiedUser =
+      normalizeUser(
+        data,
+      );
+
+    currentUser =
+      verifiedUser;
+
+    await saveSession({
+      user:
+        verifiedUser,
+
+      accessToken:
+        storedSession.accessToken,
+    });
+
+    return verifiedUser;
+  } catch (error) {
+    /*
+     * No network / temporary backend problem.
+     *
+     * Do not crash.
+     * Do not delete a potentially valid session.
+     */
+
+    console.warn(
+      'Session validation unavailable:',
+      error,
+    );
+
+    return currentUser;
+  }
+}
+
+/*
  * ------------------------------------------------
  * EMAIL/PASSWORD LOGIN
  * ------------------------------------------------
  */
 
 export async function signInWithWorkEmail(
-  emailInput: string,
-  passwordInput: string,
+  emailInput:
+    string,
+
+  passwordInput:
+    string,
 ): Promise<AuthUser> {
   const apiBaseUrl =
     requireApiUrl();
@@ -308,7 +648,9 @@ export async function signInWithWorkEmail(
   }
 
   if (
-    !email.includes('@')
+    !email.includes(
+      '@',
+    )
   ) {
     throw new Error(
       'Please enter a valid work email.',
@@ -353,7 +695,7 @@ export async function signInWithWorkEmail(
     );
   }
 
-  return setAuthenticatedSession(
+  return await setAuthenticatedSession(
     data,
   );
 }
@@ -365,7 +707,8 @@ export async function signInWithWorkEmail(
  */
 
 export async function registerWithWorkEmail(
-  input: RegisterInput,
+  input:
+    RegisterInput,
 ): Promise<AuthUser> {
   const apiBaseUrl =
     requireApiUrl();
@@ -387,7 +730,8 @@ export async function registerWithWorkEmail(
     input.password;
 
   if (
-    name.length < 2
+    name.length <
+    2
   ) {
     throw new Error(
       'Please enter your full name.',
@@ -401,7 +745,9 @@ export async function registerWithWorkEmail(
   }
 
   if (
-    !email.includes('@')
+    !email.includes(
+      '@',
+    )
   ) {
     throw new Error(
       'Please enter a valid work email.',
@@ -409,7 +755,8 @@ export async function registerWithWorkEmail(
   }
 
   if (
-    password.length < 8
+    password.length <
+    8
   ) {
     throw new Error(
       'Password must contain at least 8 characters.',
@@ -449,8 +796,190 @@ export async function registerWithWorkEmail(
     );
   }
 
-  return setAuthenticatedSession(
+  return await setAuthenticatedSession(
     data,
+  );
+}
+
+/*
+ * ------------------------------------------------
+ * REQUEST PASSWORD RESET
+ * ------------------------------------------------
+ */
+
+export async function requestPasswordReset(
+  emailInput:
+    string,
+): Promise<string> {
+  const apiBaseUrl =
+    requireApiUrl();
+
+  const email =
+    emailInput
+      .trim()
+      .toLowerCase();
+
+  if (!email) {
+    throw new Error(
+      'Please enter your work email.',
+    );
+  }
+
+  if (
+    !email.includes(
+      '@',
+    )
+  ) {
+    throw new Error(
+      'Please enter a valid work email.',
+    );
+  }
+
+  const response =
+    await fetchWithTimeout(
+      `${apiBaseUrl}/api/auth/forgot-password`,
+      {
+        method:
+          'POST',
+
+        headers: {
+          'Content-Type':
+            'application/json',
+        },
+
+        body:
+          JSON.stringify({
+            email,
+          }),
+      },
+    );
+
+  const data =
+    await readMessageResponse(
+      response,
+    );
+
+  if (!response.ok) {
+    throw new Error(
+      data.message ??
+        'Unable to request a password reset.',
+    );
+  }
+
+  return (
+    data.message ??
+    'If an account exists for that email, a password reset code has been sent.'
+  );
+}
+
+/*
+ * ------------------------------------------------
+ * RESET PASSWORD
+ * ------------------------------------------------
+ */
+
+export async function resetPassword(
+  input:
+    ResetPasswordInput,
+): Promise<string> {
+  const apiBaseUrl =
+    requireApiUrl();
+
+  const email =
+    input.email
+      .trim()
+      .toLowerCase();
+
+  const code =
+    input.code
+      .trim();
+
+  const newPassword =
+    input.newPassword;
+
+  if (!email) {
+    throw new Error(
+      'Work email is required.',
+    );
+  }
+
+  if (
+    !email.includes(
+      '@',
+    )
+  ) {
+    throw new Error(
+      'Please enter a valid work email.',
+    );
+  }
+
+  if (
+    !/^\d{6}$/.test(
+      code,
+    )
+  ) {
+    throw new Error(
+      'Please enter the 6-digit reset code.',
+    );
+  }
+
+  if (
+    newPassword.length <
+    8
+  ) {
+    throw new Error(
+      'Password must contain at least 8 characters.',
+    );
+  }
+
+  const response =
+    await fetchWithTimeout(
+      `${apiBaseUrl}/api/auth/reset-password`,
+      {
+        method:
+          'POST',
+
+        headers: {
+          'Content-Type':
+            'application/json',
+        },
+
+        body:
+          JSON.stringify({
+            email,
+            code,
+            newPassword,
+          }),
+      },
+    );
+
+  const data =
+    await readMessageResponse(
+      response,
+    );
+
+  if (!response.ok) {
+    throw new Error(
+      data.message ??
+        'Unable to reset your password.',
+    );
+  }
+
+  /*
+   * Important:
+   *
+   * If this device happened to contain an old
+   * authenticated session for the same user,
+   * remove it after changing the password.
+   *
+   * User signs in again with the new password.
+   */
+
+  await signOut();
+
+  return (
+    data.message ??
+    'Password updated successfully.'
   );
 }
 
@@ -461,8 +990,11 @@ export async function registerWithWorkEmail(
  */
 
 export async function authenticatedFetch(
-  path: string,
-  options: RequestInit = {},
+  path:
+    string,
+
+  options:
+    RequestInit = {},
 ): Promise<Response> {
   const apiBaseUrl =
     requireApiUrl();
@@ -504,11 +1036,28 @@ export async function authenticatedFetch(
     );
   }
 
-  return fetchWithTimeout(
-    `${apiBaseUrl}${path}`,
-    {
-      ...options,
-      headers,
-    },
-  );
+  const response =
+    await fetchWithTimeout(
+      `${apiBaseUrl}${path}`,
+      {
+        ...options,
+
+        headers,
+      },
+    );
+
+  /*
+   * Any authenticated request proving that the
+   * JWT is no longer valid clears the secure
+   * session.
+   */
+
+  if (
+    response.status ===
+      401
+  ) {
+    await signOut();
+  }
+
+  return response;
 }

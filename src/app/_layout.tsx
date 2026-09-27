@@ -6,11 +6,9 @@ import { ReceiptProvider } from '../context/ReceiptContext';
 export default function RootLayout() {
   return (
     <ReceiptProvider>
-      <StatusBar
-        style="light"
-        translucent
-        backgroundColor="transparent"
-      />
+     <StatusBar
+  style="light"
+/>
 
       <Stack
         screenOptions={{

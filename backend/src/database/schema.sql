@@ -164,8 +164,7 @@ BEGIN
     IF NOT EXISTS (
         SELECT 1
         FROM pg_constraint
-        WHERE conname =
-            'expense_attendees_type_check'
+        WHERE conname = 'expense_attendees_type_check'
     ) THEN
         ALTER TABLE expense_attendees
         ADD CONSTRAINT expense_attendees_type_check
@@ -179,6 +178,33 @@ BEGIN
     END IF;
 END
 $$;
+
+
+-- ============================================================
+-- PASSWORD RESET CODES
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS password_reset_codes (
+    id UUID PRIMARY KEY
+        DEFAULT gen_random_uuid(),
+
+    user_id UUID NOT NULL,
+
+    code_hash TEXT NOT NULL,
+
+    expires_at TIMESTAMPTZ NOT NULL,
+
+    used_at TIMESTAMPTZ NULL,
+
+    created_at TIMESTAMPTZ
+        NOT NULL
+        DEFAULT NOW(),
+
+    CONSTRAINT password_reset_codes_user_fk
+        FOREIGN KEY (user_id)
+        REFERENCES users(id)
+        ON DELETE CASCADE
+);
 
 
 -- ============================================================
@@ -294,6 +320,19 @@ CREATE INDEX IF NOT EXISTS
     idx_expense_attendees_expense
 ON expense_attendees (
     expense_id
+);
+
+CREATE INDEX IF NOT EXISTS
+    idx_password_reset_codes_user
+ON password_reset_codes (
+    user_id,
+    created_at DESC
+);
+
+CREATE INDEX IF NOT EXISTS
+    idx_password_reset_codes_expiry
+ON password_reset_codes (
+    expires_at
 );
 
 CREATE INDEX IF NOT EXISTS

@@ -58,7 +58,8 @@
           "photosPermission": "Allow Sky Avenir Expense to access your photos so you can select expense receipts.",
           "cameraPermission": "Allow Sky Avenir Expense to use your camera to capture expense receipts."
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true,

@@ -3,10 +3,10 @@ import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 
 import {
-    Pressable,
-    StyleSheet,
-    Text,
-    View,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
 } from 'react-native';
 
 import { useReceipt } from '../../context/ReceiptContext';
@@ -29,9 +29,8 @@ export default function ExpenseSuccessScreen() {
   return (
     <View style={styles.container}>
       <StatusBar
-        style="dark"
-        backgroundColor="#F4F8FB"
-      />
+  style="dark"
+/>
 
       {/* SOFT BACKGROUND DETAILS */}
 

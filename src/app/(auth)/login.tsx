@@ -20,7 +20,6 @@ import {
 } from 'expo-status-bar';
 
 import {
-  Alert,
   Animated,
   ImageBackground,
   KeyboardAvoidingView,
@@ -112,56 +111,43 @@ export default function LoginScreen() {
     ).start();
   }
 
-  async function handleSignIn() {
-    if (
-      isSigningIn
-    ) {
-      return;
-    }
-
-    try {
-      setLoginError(
-        '',
-      );
-
-      setIsSigningIn(
-        true,
-      );
-
-      const user =
-        await signInWithWorkEmail(
-          workEmail,
-          password,
-        );
-
-     await signInWithWorkEmail(
-  workEmail,
-  password,
-);
-
-router.replace(
-  '/(tabs)/home',
-);
-    } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : 'Unable to sign in.';
-
-      console.log(
-        'Work email sign-in:',
-        error,
-      );
-
-      setLoginError(
-        message,
-      );
-    } finally {
-      setIsSigningIn(
-        false,
-      );
-    }
+ async function handleSignIn() {
+  if (isSigningIn) {
+    return;
   }
+
+  try {
+    setLoginError('');
+    setIsSigningIn(true);
+
+    await signInWithWorkEmail(
+      workEmail,
+      password,
+    );
+
+    router.replace(
+      '/(tabs)/home',
+    );
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : 'Unable to sign in.';
+
+    console.log(
+      'Work email sign-in:',
+      error,
+    );
+
+    setLoginError(
+      message,
+    );
+  } finally {
+    setIsSigningIn(
+      false,
+    );
+  }
+}
 
   const canSubmit =
     workEmail
@@ -513,22 +499,21 @@ router.replace(
     styles.accountActions 
   } 
 > 
-  <Pressable 
-    onPress={() => 
-      Alert.alert( 
-        'Forgot Password', 
-        'Password reset by email is not configured yet. This feature will be enabled after the login and account creation flow is verified.', 
-      ) 
-    } 
-  > 
-    <Text 
-      style={ 
-        styles.forgotPasswordText 
-      } 
-    > 
-      Forgot Password? 
-    </Text> 
-  </Pressable> 
+ <Pressable
+  onPress={() =>
+    router.push(
+      '/(auth)/forgot-password',
+    )
+  }
+>
+  <Text
+    style={
+      styles.forgotPasswordText
+    }
+  >
+    Forgot Password?
+  </Text>
+</Pressable>
  
   <Pressable 
     onPress={() => 

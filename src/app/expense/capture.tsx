@@ -1,10 +1,10 @@
 import { useRef, useState } from 'react';
 
 import {
-    CameraType,
-    CameraView,
-    FlashMode,
-    useCameraPermissions,
+  CameraType,
+  CameraView,
+  FlashMode,
+  useCameraPermissions,
 } from 'expo-camera';
 
 import * as ImagePicker from 'expo-image-picker';
@@ -14,12 +14,12 @@ import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 
 import {
-    ActivityIndicator,
-    Alert,
-    Pressable,
-    StyleSheet,
-    Text,
-    View,
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
 } from 'react-native';
 
 import { useReceipt } from '../../context/ReceiptContext';
@@ -200,11 +200,9 @@ export default function CaptureReceiptScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar
-        style="light"
-        translucent
-        backgroundColor="transparent"
-      />
+     <StatusBar
+  style="light"
+/>
 
       <CameraView
         ref={cameraRef}

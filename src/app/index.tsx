@@ -1,50 +1,150 @@
-import { useEffect } from 'react';
 import {
-    Image,
-    StyleSheet,
-    View,
+  useEffect,
+} from 'react';
+
+import {
+  Image,
+  StyleSheet,
+  View,
 } from 'react-native';
 
-import { router } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
+import {
+  router,
+} from 'expo-router';
 
-const splashImage = require('../../assets/images/sky-avenir-splash.png');
+import {
+  StatusBar,
+} from 'expo-status-bar';
+
+import {
+  restoreSession,
+} from '../../services/auth';
+
+const splashImage =
+  require(
+    '../../assets/images/sky-avenir-splash.png',
+  );
+
+const MIN_SPLASH_MS =
+  1800;
 
 export default function SplashScreen() {
   useEffect(() => {
-    const timer = setTimeout(() => {
-      router.replace('/(auth)/login');
-    }, 3000);
+    let mounted =
+      true;
 
-    return () => clearTimeout(timer);
+    async function initializeApp() {
+      const startedAt =
+        Date.now();
+
+      try {
+        const user =
+          await restoreSession();
+
+        const elapsed =
+          Date.now() -
+          startedAt;
+
+        const remaining =
+          Math.max(
+            MIN_SPLASH_MS -
+              elapsed,
+            0,
+          );
+
+        if (
+          remaining >
+          0
+        ) {
+          await new Promise(
+            (resolve) =>
+              setTimeout(
+                resolve,
+                remaining,
+              ),
+          );
+        }
+
+        if (!mounted) {
+          return;
+        }
+
+        if (user) {
+          router.replace(
+            '/(tabs)/home',
+          );
+
+          return;
+        }
+
+        router.replace(
+          '/(auth)/login',
+        );
+      } catch (error) {
+        console.error(
+          'App initialization failed:',
+          error,
+        );
+
+        if (!mounted) {
+          return;
+        }
+
+        router.replace(
+          '/(auth)/login',
+        );
+      }
+    }
+
+    initializeApp();
+
+    return () => {
+      mounted =
+        false;
+    };
   }, []);
 
   return (
-    <View style={styles.container}>
+    <View
+      style={
+        styles.container
+      }
+    >
       <StatusBar
         style="light"
-        translucent
-        backgroundColor="transparent"
       />
 
       <Image
-        source={splashImage}
-        style={styles.image}
+        source={
+          splashImage
+        }
+        style={
+          styles.image
+        }
         resizeMode="cover"
-        fadeDuration={0}
+        fadeDuration={
+          0
+        }
       />
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#062B4A',
-  },
+const styles =
+  StyleSheet.create({
+    container: {
+      flex:
+        1,
 
-  image: {
-    width: '100%',
-    height: '100%',
-  },
-});
+      backgroundColor:
+        '#062B4A',
+    },
+
+    image: {
+      width:
+        '100%',
+
+      height:
+        '100%',
+    },
+  });
