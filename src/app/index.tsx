@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useState,
 } from 'react';
 
 import {
@@ -9,7 +10,7 @@ import {
 } from 'react-native';
 
 import {
-  router,
+  Redirect,
 } from 'expo-router';
 
 import {
@@ -25,84 +26,116 @@ const splashImage =
     '../../assets/images/sky-avenir-splash.png',
   );
 
-const MIN_SPLASH_MS =
-  1800;
+type StartupDestination =
+  | 'home'
+  | 'login'
+  | null;
+
+const MIN_SPLASH_TIME_MS =
+  1200;
 
 export default function SplashScreen() {
+  const [
+    destination,
+    setDestination,
+  ] =
+    useState<StartupDestination>(
+      null,
+    );
+
   useEffect(() => {
     let mounted =
       true;
 
-    async function initializeApp() {
+    async function startApp() {
       const startedAt =
         Date.now();
+
+      let nextDestination:
+        StartupDestination =
+        'login';
 
       try {
         const user =
           await restoreSession();
 
-        const elapsed =
-          Date.now() -
-          startedAt;
-
-        const remaining =
-          Math.max(
-            MIN_SPLASH_MS -
-              elapsed,
-            0,
-          );
-
-        if (
-          remaining >
-          0
-        ) {
-          await new Promise(
-            (resolve) =>
-              setTimeout(
-                resolve,
-                remaining,
-              ),
-          );
-        }
-
-        if (!mounted) {
-          return;
-        }
-
-        if (user) {
-          router.replace(
-            '/(tabs)/home',
-          );
-
-          return;
-        }
-
-        router.replace(
-          '/(auth)/login',
-        );
+        nextDestination =
+          user
+            ? 'home'
+            : 'login';
       } catch (error) {
         console.error(
-          'App initialization failed:',
+          'Startup session restore failed:',
           error,
         );
 
-        if (!mounted) {
-          return;
-        }
+        nextDestination =
+          'login';
+      }
 
-        router.replace(
-          '/(auth)/login',
+      const elapsed =
+        Date.now() -
+        startedAt;
+
+      const remaining =
+        Math.max(
+          MIN_SPLASH_TIME_MS -
+            elapsed,
+          0,
+        );
+
+      if (
+        remaining >
+        0
+      ) {
+        await new Promise<void>(
+          (resolve) => {
+            setTimeout(
+              resolve,
+              remaining,
+            );
+          },
+        );
+      }
+
+      if (
+        mounted
+      ) {
+        setDestination(
+          nextDestination,
         );
       }
     }
 
-    initializeApp();
+    void startApp();
 
     return () => {
       mounted =
         false;
     };
   }, []);
+
+  if (
+    destination ===
+    'home'
+  ) {
+    return (
+      <Redirect
+        href="/(tabs)/home"
+      />
+    );
+  }
+
+  if (
+    destination ===
+    'login'
+  ) {
+    return (
+      <Redirect
+        href="/(auth)/login"
+      />
+    );
+  }
 
   return (
     <View
