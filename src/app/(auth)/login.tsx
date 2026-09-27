@@ -20,6 +20,7 @@ import {
 } from 'expo-status-bar';
 
 import {
+  Alert,
   Animated,
   ImageBackground,
   KeyboardAvoidingView,
@@ -29,7 +30,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  View,
+  View
 } from 'react-native';
 
 import {
@@ -133,21 +134,14 @@ export default function LoginScreen() {
           password,
         );
 
-      router.replace({
-        pathname:
-          '/(auth)/auth-processing',
+     await signInWithWorkEmail(
+  workEmail,
+  password,
+);
 
-        params: {
-          provider:
-            'email',
-
-          name:
-            user.name,
-
-          email:
-            user.email,
-        },
-      });
+router.replace(
+  '/(tabs)/home',
+);
     } catch (error) {
       const message =
         error instanceof Error
@@ -514,13 +508,51 @@ export default function LoginScreen() {
                   </View>
                 </View>
 
-                <Text
-                  style={
-                    styles.accessText
-                  }
-                >
-                  Need access? Contact your administrator.
-                </Text>
+                <View 
+  style={ 
+    styles.accountActions 
+  } 
+> 
+  <Pressable 
+    onPress={() => 
+      Alert.alert( 
+        'Forgot Password', 
+        'Password reset by email is not configured yet. This feature will be enabled after the login and account creation flow is verified.', 
+      ) 
+    } 
+  > 
+    <Text 
+      style={ 
+        styles.forgotPasswordText 
+      } 
+    > 
+      Forgot Password? 
+    </Text> 
+  </Pressable> 
+ 
+  <Pressable 
+    onPress={() => 
+      router.push( 
+        '/(auth)/create-account', 
+      ) 
+    } 
+  > 
+    <Text 
+      style={ 
+        styles.createAccountText 
+      } 
+    > 
+      First time here?{' '} 
+      <Text 
+        style={ 
+          styles.createAccountStrong 
+        } 
+      > 
+        Create Account 
+      </Text> 
+    </Text> 
+  </Pressable> 
+</View>
 
                 <View
                   style={
@@ -919,23 +951,27 @@ const styles =
         '#648196',
     },
 
-    accessText: {
-      marginTop:
-        9,
+    accountActions: {
+  marginTop: 14,
+  alignItems: 'center',
+  gap: 12,
+},
 
-      textAlign:
-        'center',
+forgotPasswordText: {
+  fontSize: 11.5,
+  fontWeight: '600',
+  color: '#0868AE',
+},
 
-      fontSize:
-        10.5,
+createAccountText: {
+  fontSize: 11.5,
+  color: '#56758D',
+},
 
-      fontWeight:
-        '500',
-
-      color:
-        '#56758D',
-    },
-
+createAccountStrong: {
+  fontWeight: '700',
+  color: '#0868AE',
+},
     footer: {
       marginTop:
         22,

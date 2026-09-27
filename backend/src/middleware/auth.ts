@@ -13,28 +13,37 @@ import {
 } from '../config/env.js';
 
 export type AuthProvider =
-  | 'microsoft'
-  | 'google'
-  | 'email';
+  'email';
 
 export type AuthenticatedUser = {
   id?: string;
-  provider: AuthProvider;
-  providerUserId: string;
-  name: string;
-  email: string;
+
+  provider:
+    AuthProvider;
+
+  providerUserId:
+    string;
+
+  name:
+    string;
+
+  email:
+    string;
 };
 
 declare global {
   namespace Express {
     interface Request {
-      user?: AuthenticatedUser;
+      user?:
+        AuthenticatedUser;
     }
   }
 }
 
 function getSessionSecret(): Uint8Array {
-  if (!env.appSessionSecret) {
+  if (
+    !env.appSessionSecret
+  ) {
     throw new Error(
       'APP_SESSION_SECRET is not configured.',
     );
@@ -56,10 +65,15 @@ export async function requireAuth(
 
     if (
       !authorization ||
-      !authorization.startsWith('Bearer ')
+      !authorization.startsWith(
+        'Bearer ',
+      )
     ) {
-      res.status(401).json({
-        message: 'Authentication required.',
+      res.status(
+        401,
+      ).json({
+        message:
+          'Authentication required.',
       });
 
       return;
@@ -71,14 +85,19 @@ export async function requireAuth(
         .trim();
 
     if (!token) {
-      res.status(401).json({
-        message: 'Authentication required.',
+      res.status(
+        401,
+      ).json({
+        message:
+          'Authentication required.',
       });
 
       return;
     }
 
-    const { payload } =
+    const {
+      payload,
+    } =
       await jwtVerify(
         token,
         getSessionSecret(),
@@ -104,16 +123,18 @@ export async function requireAuth(
       payload.email;
 
     if (
-      (
-        provider !== 'google' &&
-        provider !== 'microsoft' &&
-        provider !== 'email'
-      ) ||
-      typeof providerUserId !== 'string' ||
-      typeof name !== 'string' ||
-      typeof email !== 'string'
+      provider !==
+        'email' ||
+      typeof providerUserId !==
+        'string' ||
+      typeof name !==
+        'string' ||
+      typeof email !==
+        'string'
     ) {
-      res.status(401).json({
+      res.status(
+        401,
+      ).json({
         message:
           'Invalid authentication session.',
       });
@@ -123,11 +144,13 @@ export async function requireAuth(
 
     req.user = {
       id:
-        typeof payload.sub === 'string'
+        typeof payload.sub ===
+        'string'
           ? payload.sub
           : undefined,
 
-      provider,
+      provider:
+        'email',
 
       providerUserId,
 
@@ -146,7 +169,9 @@ export async function requireAuth(
       error,
     );
 
-    res.status(401).json({
+    res.status(
+      401,
+    ).json({
       message:
         'Invalid or expired authentication.',
     });

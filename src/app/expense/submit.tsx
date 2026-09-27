@@ -125,10 +125,36 @@ export default function SubmitExpenseScreen() {
     setComments,
   ] = useState('');
 
-  const [
-    attendees,
-    setAttendees,
-  ] = useState<string[]>(
+ type AttendeeType =
+  | 'WAVETRONIX_EMPLOYEE'
+  | 'NON_WAVETRONIX';
+
+type AttendeeInput = {
+  name: string;
+  attendeeType: AttendeeType;
+};
+
+const [
+  attendeeTab,
+  setAttendeeTab,
+] =
+  useState<AttendeeType>(
+    'WAVETRONIX_EMPLOYEE',
+  );
+
+const [
+  wavetronixAttendees,
+  setWavetronixAttendees,
+] =
+  useState<string[]>(
+    [''],
+  );
+
+const [
+  nonWavetronixAttendees,
+  setNonWavetronixAttendees,
+] =
+  useState<string[]>(
     [''],
   );
 
@@ -181,54 +207,85 @@ export default function SubmitExpenseScreen() {
   }
 
   function updateAttendee(
-    index: number,
-    value: string,
-  ) {
-    setAttendees(
-      (current) =>
-        current.map(
+  type:
+    AttendeeType,
+
+  index:
+    number,
+
+  value:
+    string,
+) {
+  const setter =
+    type ===
+    'WAVETRONIX_EMPLOYEE'
+      ? setWavetronixAttendees
+      : setNonWavetronixAttendees;
+
+  setter(
+    (current) =>
+      current.map(
+        (
+          attendee,
+          attendeeIndex,
+        ) =>
+          attendeeIndex ===
+          index
+            ? value
+            : attendee,
+      ),
+  );
+}
+
+function addAttendee(
+  type:
+    AttendeeType,
+) {
+  const setter =
+    type ===
+    'WAVETRONIX_EMPLOYEE'
+      ? setWavetronixAttendees
+      : setNonWavetronixAttendees;
+
+  setter(
+    (current) => [
+      ...current,
+      '',
+    ],
+  );
+}
+
+function removeAttendee(
+  type:
+    AttendeeType,
+
+  index:
+    number,
+) {
+  const setter =
+    type ===
+    'WAVETRONIX_EMPLOYEE'
+      ? setWavetronixAttendees
+      : setNonWavetronixAttendees;
+
+  setter(
+    (current) => {
+      const next =
+        current.filter(
           (
-            attendee,
+            _,
             attendeeIndex,
           ) =>
-            attendeeIndex ===
-            index
-              ? value
-              : attendee,
-        ),
-    );
-  }
+            attendeeIndex !==
+            index,
+        );
 
-  function addAttendee() {
-    setAttendees(
-      (current) => [
-        ...current,
-        '',
-      ],
-    );
-  }
-
-  function removeAttendee(
-    index: number,
-  ) {
-    setAttendees(
-      (current) => {
-        const next =
-          current.filter(
-            (
-              _,
-              attendeeIndex,
-            ) =>
-              attendeeIndex !==
-              index,
-          );
-
-        return next.length
-          ? next
-          : [''];
-      },
-    );
-  }
+      return next.length
+        ? next
+        : [''];
+    },
+  );
+}
 
   function validateExpense() {
     if (!category) {
@@ -248,31 +305,36 @@ export default function SubmitExpenseScreen() {
 
       return false;
     }
+if (
+  requiresAttendees
+) {
+  const validWavetronix =
+    wavetronixAttendees.filter(
+      (name) =>
+        name.trim().length >
+        0,
+    );
 
-    if (
-      requiresAttendees
-    ) {
-      const validAttendees =
-        attendees.filter(
-          (name) =>
-            name
-              .trim()
-              .length >
-            0,
-        );
+  const validNonWavetronix =
+    nonWavetronixAttendees.filter(
+      (name) =>
+        name.trim().length >
+        0,
+    );
 
-      if (
-        validAttendees.length ===
-        0
-      ) {
-        Alert.alert(
-          'Attendee required',
-          'Please add at least one attendee.',
-        );
+  if (
+    validWavetronix.length +
+      validNonWavetronix.length ===
+    0
+  ) {
+    Alert.alert(
+      'Attendee required',
+      'Please add at least one attendee.',
+    );
 
-        return false;
-      }
-    }
+    return false;
+  }
+}
 
     return true;
   }
@@ -465,17 +527,41 @@ export default function SubmitExpenseScreen() {
        * ------------------------------------------------
        */
 
-      const cleanedAttendees =
-        requiresAttendees
-          ? attendees
-              .map(
-                (name) =>
-                  name.trim(),
-              )
-              .filter(
-                Boolean,
-              )
-          : [];
+    const cleanedAttendees:
+  AttendeeInput[] =
+  requiresAttendees
+    ? [
+        ...wavetronixAttendees
+          .map(
+            (name) =>
+              name.trim(),
+          )
+          .filter(Boolean)
+          .map(
+            (name) => ({
+              name,
+
+              attendeeType:
+                'WAVETRONIX_EMPLOYEE' as const,
+            }),
+          ),
+
+        ...nonWavetronixAttendees
+          .map(
+            (name) =>
+              name.trim(),
+          )
+          .filter(Boolean)
+          .map(
+            (name) => ({
+              name,
+
+              attendeeType:
+                'NON_WAVETRONIX' as const,
+            }),
+          ),
+      ]
+    : [];
 
       /*
        * ------------------------------------------------
@@ -898,127 +984,318 @@ export default function SubmitExpenseScreen() {
           />
 
           {requiresAttendees && (
-            <View>
+  <View>
+    <View
+      style={
+        styles.attendeeHeadingRow
+      }
+    >
+      <FieldLabel
+        label="Attendees"
+        required
+      />
+
+      <Text
+        style={
+          styles.attendeeHint
+        }
+      >
+        Required
+      </Text>
+    </View>
+
+    <View
+      style={
+        styles.attendeeTabs
+      }
+    >
+      <Pressable
+        disabled={
+          isSubmitting
+        }
+        onPress={() =>
+          setAttendeeTab(
+            'WAVETRONIX_EMPLOYEE',
+          )
+        }
+        style={[
+          styles.attendeeTab,
+
+          attendeeTab ===
+            'WAVETRONIX_EMPLOYEE' &&
+            styles.attendeeTabActive,
+        ]}
+      >
+        <Text
+          style={[
+            styles.attendeeTabText,
+
+            attendeeTab ===
+              'WAVETRONIX_EMPLOYEE' &&
+              styles.attendeeTabTextActive,
+          ]}
+        >
+          Wavetronix Employees
+        </Text>
+      </Pressable>
+
+      <Pressable
+        disabled={
+          isSubmitting
+        }
+        onPress={() =>
+          setAttendeeTab(
+            'NON_WAVETRONIX',
+          )
+        }
+        style={[
+          styles.attendeeTab,
+
+          attendeeTab ===
+            'NON_WAVETRONIX' &&
+            styles.attendeeTabActive,
+        ]}
+      >
+        <Text
+          style={[
+            styles.attendeeTabText,
+
+            attendeeTab ===
+              'NON_WAVETRONIX' &&
+              styles.attendeeTabTextActive,
+          ]}
+        >
+          Non-Wavetronix Attendees
+        </Text>
+      </Pressable>
+    </View>
+
+    {attendeeTab ===
+    'WAVETRONIX_EMPLOYEE' ? (
+      <View>
+        {wavetronixAttendees.map(
+          (
+            attendee,
+            index,
+          ) => (
+            <View
+              key={
+                index
+              }
+              style={
+                styles.attendeeRow
+              }
+            >
               <View
                 style={
-                  styles.attendeeHeadingRow
-                }
-              >
-                <FieldLabel
-                  label="Attendees"
-                  required
-                />
-
-                <Text
-                  style={
-                    styles.attendeeHint
-                  }
-                >
-                  Required
-                </Text>
-              </View>
-
-              {attendees.map(
-                (
-                  attendee,
-                  index,
-                ) => (
-                  <View
-                    key={
-                      index
-                    }
-                    style={
-                      styles.attendeeRow
-                    }
-                  >
-                    <View
-                      style={
-                        styles.attendeeInputContainer
-                      }
-                    >
-                      <Ionicons
-                        name="person-outline"
-                        size={18}
-                        color="#698297"
-                      />
-
-                      <TextInput
-                        editable={
-                          !isSubmitting
-                        }
-                        value={
-                          attendee
-                        }
-                        onChangeText={(
-                          value,
-                        ) =>
-                          updateAttendee(
-                            index,
-                            value,
-                          )
-                        }
-                        placeholder="Attendee name"
-                        placeholderTextColor="#91A3B1"
-                        style={
-                          styles.attendeeInput
-                        }
-                      />
-                    </View>
-
-                    {attendees.length >
-                      1 && (
-                      <Pressable
-                        disabled={
-                          isSubmitting
-                        }
-                        onPress={() =>
-                          removeAttendee(
-                            index,
-                          )
-                        }
-                        style={
-                          styles.removeAttendee
-                        }
-                      >
-                        <Ionicons
-                          name="close"
-                          size={19}
-                          color="#B23B34"
-                        />
-                      </Pressable>
-                    )}
-                  </View>
-                ),
-              )}
-
-              <Pressable
-                disabled={
-                  isSubmitting
-                }
-                onPress={
-                  addAttendee
-                }
-                style={
-                  styles.addAttendeeButton
+                  styles.attendeeInputContainer
                 }
               >
                 <Ionicons
-                  name="add-circle-outline"
-                  size={19}
-                  color="#0868AE"
+                  name="person-outline"
+                  size={
+                    18
+                  }
+                  color="#698297"
                 />
 
-                <Text
+                <TextInput
+                  editable={
+                    !isSubmitting
+                  }
+                  value={
+                    attendee
+                  }
+                  onChangeText={(
+                    value,
+                  ) =>
+                    updateAttendee(
+                      'WAVETRONIX_EMPLOYEE',
+                      index,
+                      value,
+                    )
+                  }
+                  placeholder="Wavetronix employee name"
+                  placeholderTextColor="#91A3B1"
                   style={
-                    styles.addAttendeeText
+                    styles.attendeeInput
+                  }
+                />
+              </View>
+
+              {wavetronixAttendees.length >
+                1 && (
+                <Pressable
+                  disabled={
+                    isSubmitting
+                  }
+                  onPress={() =>
+                    removeAttendee(
+                      'WAVETRONIX_EMPLOYEE',
+                      index,
+                    )
+                  }
+                  style={
+                    styles.removeAttendee
                   }
                 >
-                  Add another
-                  attendee
-                </Text>
-              </Pressable>
+                  <Ionicons
+                    name="close"
+                    size={
+                      19
+                    }
+                    color="#B23B34"
+                  />
+                </Pressable>
+              )}
             </View>
-          )}
+          ),
+        )}
+
+        <Pressable
+          disabled={
+            isSubmitting
+          }
+          onPress={() =>
+            addAttendee(
+              'WAVETRONIX_EMPLOYEE',
+            )
+          }
+          style={
+            styles.addAttendeeButton
+          }
+        >
+          <Ionicons
+            name="add-circle-outline"
+            size={
+              19
+            }
+            color="#0868AE"
+          />
+
+          <Text
+            style={
+              styles.addAttendeeText
+            }
+          >
+            Add another employee
+          </Text>
+        </Pressable>
+      </View>
+    ) : (
+      <View>
+        {nonWavetronixAttendees.map(
+          (
+            attendee,
+            index,
+          ) => (
+            <View
+              key={
+                index
+              }
+              style={
+                styles.attendeeRow
+              }
+            >
+              <View
+                style={
+                  styles.attendeeInputContainer
+                }
+              >
+                <Ionicons
+                  name="person-outline"
+                  size={
+                    18
+                  }
+                  color="#698297"
+                />
+
+                <TextInput
+                  editable={
+                    !isSubmitting
+                  }
+                  value={
+                    attendee
+                  }
+                  onChangeText={(
+                    value,
+                  ) =>
+                    updateAttendee(
+                      'NON_WAVETRONIX',
+                      index,
+                      value,
+                    )
+                  }
+                  placeholder="Attendee name"
+                  placeholderTextColor="#91A3B1"
+                  style={
+                    styles.attendeeInput
+                  }
+                />
+              </View>
+
+              {nonWavetronixAttendees.length >
+                1 && (
+                <Pressable
+                  disabled={
+                    isSubmitting
+                  }
+                  onPress={() =>
+                    removeAttendee(
+                      'NON_WAVETRONIX',
+                      index,
+                    )
+                  }
+                  style={
+                    styles.removeAttendee
+                  }
+                >
+                  <Ionicons
+                    name="close"
+                    size={
+                      19
+                    }
+                    color="#B23B34"
+                  />
+                </Pressable>
+              )}
+            </View>
+          ),
+        )}
+
+        <Pressable
+          disabled={
+            isSubmitting
+          }
+          onPress={() =>
+            addAttendee(
+              'NON_WAVETRONIX',
+            )
+          }
+          style={
+            styles.addAttendeeButton
+          }
+        >
+          <Ionicons
+            name="add-circle-outline"
+            size={
+              19
+            }
+            color="#0868AE"
+          />
+
+          <Text
+            style={
+              styles.addAttendeeText
+            }
+          >
+            Add another attendee
+          </Text>
+        </Pressable>
+      </View>
+    )}
+  </View>
+)}
 
           <FieldLabel
             label="Comments"
@@ -1781,6 +2058,41 @@ const styles =
       color:
         '#B23B34',
     },
+    attendeeTabs: {
+  marginBottom: 13,
+  padding: 4,
+  flexDirection: 'row',
+  gap: 4,
+  borderRadius: 15,
+  backgroundColor: '#EEF4F8',
+},
+
+attendeeTab: {
+  flex: 1,
+  minHeight: 44,
+  paddingHorizontal: 8,
+  alignItems: 'center',
+  justifyContent: 'center',
+  borderRadius: 12,
+},
+
+attendeeTabActive: {
+  backgroundColor: '#FFFFFF',
+  elevation: 1,
+},
+
+attendeeTabText: {
+  textAlign: 'center',
+  fontSize: 10.5,
+  lineHeight: 14,
+  fontWeight: '600',
+  color: '#70879A',
+},
+
+attendeeTabTextActive: {
+  fontWeight: '700',
+  color: '#0868AE',
+},
 
     attendeeRow: {
       flexDirection:

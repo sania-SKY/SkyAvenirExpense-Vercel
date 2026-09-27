@@ -5,19 +5,34 @@ export type ExpenseStatus =
   | 'REJECTED'
   | 'FAILED';
 
+export type AttendeeType =
+  | 'WAVETRONIX_EMPLOYEE'
+  | 'NON_WAVETRONIX';
+
+export type ExpenseAttendeeInput = {
+  name: string;
+  attendeeType: AttendeeType;
+};
+
 export type CreateExpenseInput = {
   category: string;
+
   businessPurpose: string;
+
   comments: string | null;
+
   receiptStorageKey: string;
-  attendees: string[];
+
+  attendees: ExpenseAttendeeInput[];
 };
 
 export type ExpenseRecord = {
   id: string;
+
   userId: string;
 
   category: string;
+
   businessPurpose: string;
 
   comments: string | null;
@@ -41,5 +56,6 @@ export type ExpenseRecord = {
   submittedAt: Date;
 
   createdAt: Date;
+
   updatedAt: Date;
 };

@@ -13,6 +13,8 @@ CREATE TABLE IF NOT EXISTS users (
     email VARCHAR(320) NOT NULL,
     name VARCHAR(255) NOT NULL,
 
+    password_hash TEXT NULL,
+
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
@@ -31,6 +33,16 @@ CREATE TABLE IF NOT EXISTS users (
             provider_user_id
         )
 );
+
+ALTER TABLE users
+ADD COLUMN IF NOT EXISTS password_hash TEXT NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS
+    idx_users_email_auth_email_unique
+ON users (
+    LOWER(email)
+)
+WHERE auth_provider = 'email';
 
 
 -- ============================================================
@@ -57,7 +69,6 @@ CREATE TABLE IF NOT EXISTS expenses (
         NOT NULL
         DEFAULT NOW(),
 
-    -- External/company API integration
     external_reference VARCHAR(255) NULL,
     external_status VARCHAR(100) NULL,
     external_error TEXT NULL,
@@ -119,6 +130,8 @@ CREATE TABLE IF NOT EXISTS expense_attendees (
 
     name VARCHAR(255) NOT NULL,
 
+    attendee_type VARCHAR(30) NULL,
+
     created_at TIMESTAMPTZ
         NOT NULL
         DEFAULT NOW(),
@@ -131,8 +144,41 @@ CREATE TABLE IF NOT EXISTS expense_attendees (
     CONSTRAINT expense_attendees_name_not_blank
         CHECK (
             LENGTH(TRIM(name)) > 0
+        ),
+
+    CONSTRAINT expense_attendees_type_check
+        CHECK (
+            attendee_type IS NULL
+            OR attendee_type IN (
+                'WAVETRONIX_EMPLOYEE',
+                'NON_WAVETRONIX'
+            )
         )
 );
+
+ALTER TABLE expense_attendees
+ADD COLUMN IF NOT EXISTS attendee_type VARCHAR(30) NULL;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname =
+            'expense_attendees_type_check'
+    ) THEN
+        ALTER TABLE expense_attendees
+        ADD CONSTRAINT expense_attendees_type_check
+        CHECK (
+            attendee_type IS NULL
+            OR attendee_type IN (
+                'WAVETRONIX_EMPLOYEE',
+                'NON_WAVETRONIX'
+            )
+        );
+    END IF;
+END
+$$;
 
 
 -- ============================================================
@@ -165,46 +211,8 @@ CREATE TABLE IF NOT EXISTS expense_integration_events (
 
 
 -- ============================================================
--- INDEXES
+-- INTEGRATION JOBS
 -- ============================================================
-
-CREATE INDEX IF NOT EXISTS
-    idx_expenses_user_submitted
-ON expenses (
-    user_id,
-    submitted_at DESC
-);
-
-
-CREATE INDEX IF NOT EXISTS
-    idx_expenses_status
-ON expenses (
-    status
-);
-
-
-CREATE INDEX IF NOT EXISTS
-    idx_expenses_external_reference
-ON expenses (
-    external_reference
-)
-WHERE external_reference IS NOT NULL;
-
-
-CREATE INDEX IF NOT EXISTS
-    idx_expense_attendees_expense
-ON expense_attendees (
-    expense_id
-);
-
-
-CREATE INDEX IF NOT EXISTS
-    idx_integration_events_expense
-ON expense_integration_events (
-    expense_id,
-    received_at DESC
-);
-
 
 CREATE TABLE IF NOT EXISTS integration_jobs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -255,6 +263,44 @@ CREATE TABLE IF NOT EXISTS integration_jobs (
 
     CONSTRAINT integration_jobs_expense_unique
         UNIQUE (expense_id)
+);
+
+
+-- ============================================================
+-- INDEXES
+-- ============================================================
+
+CREATE INDEX IF NOT EXISTS
+    idx_expenses_user_submitted
+ON expenses (
+    user_id,
+    submitted_at DESC
+);
+
+CREATE INDEX IF NOT EXISTS
+    idx_expenses_status
+ON expenses (
+    status
+);
+
+CREATE INDEX IF NOT EXISTS
+    idx_expenses_external_reference
+ON expenses (
+    external_reference
+)
+WHERE external_reference IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS
+    idx_expense_attendees_expense
+ON expense_attendees (
+    expense_id
+);
+
+CREATE INDEX IF NOT EXISTS
+    idx_integration_events_expense
+ON expense_integration_events (
+    expense_id,
+    received_at DESC
 );
 
 CREATE INDEX IF NOT EXISTS

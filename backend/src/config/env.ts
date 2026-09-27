@@ -8,6 +8,22 @@ const dbPort = Number(
   process.env.DB_PORT ?? 5432,
 );
 
+function parseAllowedWorkEmailDomains(): string[] {
+  const configured =
+    process.env.ALLOWED_WORK_EMAIL_DOMAINS ??
+    'skyavenir.com';
+
+  return configured
+    .split(',')
+    .map((domain) =>
+      domain
+        .trim()
+        .toLowerCase()
+        .replace(/^@/, ''),
+    )
+    .filter(Boolean);
+}
+
 export const env = {
   port,
 
@@ -17,18 +33,8 @@ export const env = {
   appSessionSecret:
     process.env.APP_SESSION_SECRET ?? '',
 
-  microsoft: {
-    tenantId:
-      process.env.MICROSOFT_TENANT_ID ?? '',
-
-    clientId:
-      process.env.MICROSOFT_CLIENT_ID ?? '',
-  },
-
-  google: {
-    webClientId:
-      process.env.GOOGLE_WEB_CLIENT_ID ?? '',
-  },
+  allowedWorkEmailDomains:
+    parseAllowedWorkEmailDomains(),
 
   database: {
     host:

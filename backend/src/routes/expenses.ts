@@ -1,27 +1,29 @@
 import {
-    Router,
+  Router,
 } from 'express';
 
 import {
-    randomUUID,
+  randomUUID,
 } from 'node:crypto';
+
 import fs from 'node:fs';
+
 import path from 'node:path';
 
 import multer from 'multer';
 
 import {
-    requireAuth,
+  requireAuth,
 } from '../middleware/auth.js';
 
 import {
-    createExpense,
-    getExpenseById,
-    getMyExpenses,
+  createExpense,
+  getExpenseById,
+  getMyExpenses,
 } from '../services/expenseService.js';
 
 import {
-    createExpenseSchema,
+  createExpenseSchema,
 } from '../validation/expense.js';
 
 const router =
@@ -37,7 +39,8 @@ const receiptUploadDirectory =
 fs.mkdirSync(
   receiptUploadDirectory,
   {
-    recursive: true,
+    recursive:
+      true,
   },
 );
 
@@ -52,9 +55,12 @@ const allowedReceiptTypes =
   ]);
 
 function extensionForMimeType(
-  mimeType: string,
+  mimeType:
+    string,
 ) {
-  switch (mimeType) {
+  switch (
+    mimeType
+  ) {
     case 'image/png':
       return '.png';
 
@@ -114,7 +120,9 @@ const receiptUpload =
 
     limits: {
       fileSize:
-        10 * 1024 * 1024,
+        10 *
+        1024 *
+        1024,
     },
 
     fileFilter:
@@ -148,10 +156,6 @@ const receiptUpload =
  * ------------------------------------------------
  * POST /api/expenses/upload
  * ------------------------------------------------
- *
- * Upload actual receipt first.
- * Returns server-side storage key.
- * ------------------------------------------------
  */
 
 router.post(
@@ -167,6 +171,7 @@ router.post(
     )(
       req,
       res,
+
       (error) => {
         if (error) {
           console.error(
@@ -174,38 +179,46 @@ router.post(
             error,
           );
 
-          res.status(400).json({
-            message:
-              error instanceof Error
-                ? error.message
-                : 'Unable to upload receipt.',
-          });
+          res
+            .status(400)
+            .json({
+              message:
+                error instanceof Error
+                  ? error.message
+                  : 'Unable to upload receipt.',
+            });
 
           return;
         }
 
-        if (!req.file) {
-          res.status(400).json({
-            message:
-              'Receipt file is required.',
-          });
+        if (
+          !req.file
+        ) {
+          res
+            .status(400)
+            .json({
+              message:
+                'Receipt file is required.',
+            });
 
           return;
         }
 
-        res.status(201).json({
-          storageKey:
-            req.file.filename,
+        res
+          .status(201)
+          .json({
+            storageKey:
+              req.file.filename,
 
-          originalName:
-            req.file.originalname,
+            originalName:
+              req.file.originalname,
 
-          mimeType:
-            req.file.mimetype,
+            mimeType:
+              req.file.mimetype,
 
-          size:
-            req.file.size,
-        });
+            size:
+              req.file.size,
+          });
       },
     );
   },
@@ -221,13 +234,20 @@ router.post(
   '/',
   requireAuth,
 
-  async (req, res) => {
+  async (
+    req,
+    res,
+  ) => {
     try {
-      if (!req.user) {
-        res.status(401).json({
-          message:
-            'Authentication required.',
-        });
+      if (
+        !req.user
+      ) {
+        res
+          .status(401)
+          .json({
+            message:
+              'Authentication required.',
+          });
 
         return;
       }
@@ -237,14 +257,18 @@ router.post(
           req.body,
         );
 
-      if (!parsed.success) {
-        res.status(400).json({
-          message:
-            'Invalid expense submission.',
+      if (
+        !parsed.success
+      ) {
+        res
+          .status(400)
+          .json({
+            message:
+              'Invalid expense submission.',
 
-          errors:
-            parsed.error.flatten(),
-        });
+            errors:
+              parsed.error.flatten(),
+          });
 
         return;
       }
@@ -252,10 +276,23 @@ router.post(
       const attendees =
         parsed.data.attendees
           .map(
-            (name) =>
-              name.trim(),
+            (
+              attendee,
+            ) => ({
+              name:
+                attendee.name.trim(),
+
+              attendeeType:
+                attendee.attendeeType,
+            }),
           )
-          .filter(Boolean);
+          .filter(
+            (
+              attendee,
+            ) =>
+              attendee.name.length >
+              0,
+          );
 
       const expense =
         await createExpense(
@@ -280,19 +317,23 @@ router.post(
           },
         );
 
-      res.status(201).json({
-        expense,
-      });
+      res
+        .status(201)
+        .json({
+          expense,
+        });
     } catch (error) {
       console.error(
         'Create expense error:',
         error,
       );
 
-      res.status(500).json({
-        message:
-          'Unable to create expense.',
-      });
+      res
+        .status(500)
+        .json({
+          message:
+            'Unable to create expense.',
+        });
     }
   },
 );
@@ -307,13 +348,20 @@ router.get(
   '/my',
   requireAuth,
 
-  async (req, res) => {
+  async (
+    req,
+    res,
+  ) => {
     try {
-      if (!req.user) {
-        res.status(401).json({
-          message:
-            'Authentication required.',
-        });
+      if (
+        !req.user
+      ) {
+        res
+          .status(401)
+          .json({
+            message:
+              'Authentication required.',
+          });
 
         return;
       }
@@ -332,10 +380,12 @@ router.get(
         error,
       );
 
-      res.status(500).json({
-        message:
-          'Unable to retrieve expenses.',
-      });
+      res
+        .status(500)
+        .json({
+          message:
+            'Unable to retrieve expenses.',
+        });
     }
   },
 );
@@ -344,23 +394,26 @@ router.get(
  * ------------------------------------------------
  * GET /api/expenses/:id/receipt
  * ------------------------------------------------
- *
- * Receipt remains protected by authentication.
- * Employee can only retrieve their own expense.
- * ------------------------------------------------
  */
 
 router.get(
   '/:id/receipt',
   requireAuth,
 
-  async (req, res) => {
+  async (
+    req,
+    res,
+  ) => {
     try {
-      if (!req.user) {
-        res.status(401).json({
-          message:
-            'Authentication required.',
-        });
+      if (
+        !req.user
+      ) {
+        res
+          .status(401)
+          .json({
+            message:
+              'Authentication required.',
+          });
 
         return;
       }
@@ -372,11 +425,15 @@ router.get(
           ? req.params.id[0]
           : req.params.id;
 
-      if (!expenseId) {
-        res.status(400).json({
-          message:
-            'Invalid expense ID.',
-        });
+      if (
+        !expenseId
+      ) {
+        res
+          .status(400)
+          .json({
+            message:
+              'Invalid expense ID.',
+          });
 
         return;
       }
@@ -387,11 +444,15 @@ router.get(
           expenseId,
         );
 
-      if (!expense) {
-        res.status(404).json({
-          message:
-            'Expense not found.',
-        });
+      if (
+        !expense
+      ) {
+        res
+          .status(404)
+          .json({
+            message:
+              'Expense not found.',
+          });
 
         return;
       }
@@ -399,20 +460,19 @@ router.get(
       const storageKey =
         expense.receipt_storage_key;
 
-      if (!storageKey) {
-        res.status(404).json({
-          message:
-            'Receipt is not available.',
-        });
+      if (
+        !storageKey
+      ) {
+        res
+          .status(404)
+          .json({
+            message:
+              'Receipt is not available.',
+          });
 
         return;
       }
 
-      /*
-       * Older development records stored
-       * file:/// phone URIs. Those cannot
-       * be recovered from the backend.
-       */
       if (
         storageKey.startsWith(
           'file:',
@@ -421,10 +481,12 @@ router.get(
           '://',
         )
       ) {
-        res.status(404).json({
-          message:
-            'This expense was created before server receipt storage was enabled.',
-        });
+        res
+          .status(404)
+          .json({
+            message:
+              'This expense was created before server receipt storage was enabled.',
+          });
 
         return;
       }
@@ -445,10 +507,12 @@ router.get(
           absolutePath,
         )
       ) {
-        res.status(404).json({
-          message:
-            'Receipt file was not found.',
-        });
+        res
+          .status(404)
+          .json({
+            message:
+              'Receipt file was not found.',
+          });
 
         return;
       }
@@ -462,10 +526,12 @@ router.get(
         error,
       );
 
-      res.status(500).json({
-        message:
-          'Unable to retrieve receipt.',
-      });
+      res
+        .status(500)
+        .json({
+          message:
+            'Unable to retrieve receipt.',
+        });
     }
   },
 );
@@ -480,13 +546,20 @@ router.get(
   '/:id',
   requireAuth,
 
-  async (req, res) => {
+  async (
+    req,
+    res,
+  ) => {
     try {
-      if (!req.user) {
-        res.status(401).json({
-          message:
-            'Authentication required.',
-        });
+      if (
+        !req.user
+      ) {
+        res
+          .status(401)
+          .json({
+            message:
+              'Authentication required.',
+          });
 
         return;
       }
@@ -498,11 +571,15 @@ router.get(
           ? req.params.id[0]
           : req.params.id;
 
-      if (!expenseId) {
-        res.status(400).json({
-          message:
-            'Invalid expense ID.',
-        });
+      if (
+        !expenseId
+      ) {
+        res
+          .status(400)
+          .json({
+            message:
+              'Invalid expense ID.',
+          });
 
         return;
       }
@@ -513,11 +590,15 @@ router.get(
           expenseId,
         );
 
-      if (!expense) {
-        res.status(404).json({
-          message:
-            'Expense not found.',
-        });
+      if (
+        !expense
+      ) {
+        res
+          .status(404)
+          .json({
+            message:
+              'Expense not found.',
+          });
 
         return;
       }
@@ -531,10 +612,12 @@ router.get(
         error,
       );
 
-      res.status(500).json({
-        message:
-          'Unable to retrieve expense.',
-      });
+      res
+        .status(500)
+        .json({
+          message:
+            'Unable to retrieve expense.',
+        });
     }
   },
 );

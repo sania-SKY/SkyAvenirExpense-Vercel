@@ -91,19 +91,22 @@ export default function HomeScreen() {
   const [
     expenses,
     setExpenses,
-  ] = useState<Expense[]>([]);
+  ] =
+    useState<Expense[]>([]);
 
   const [
     loadingExpenses,
     setLoadingExpenses,
-  ] = useState(true);
+  ] =
+    useState(true);
 
   const [
     expenseError,
     setExpenseError,
-  ] = useState<
-    string | null
-  >(null);
+  ] =
+    useState<
+      string | null
+    >(null);
 
   /*
    * ------------------------------------------------
@@ -213,9 +216,24 @@ export default function HomeScreen() {
 
   /*
    * ------------------------------------------------
-   * Employee initials
+   * Employee display
    * ------------------------------------------------
    */
+
+  const firstName =
+    getFirstName(
+      user?.name,
+      user?.email,
+    );
+
+  const dayName =
+    new Date().toLocaleDateString(
+      'en-US',
+      {
+        weekday:
+          'long',
+      },
+    );
 
   const initials =
     getInitials(
@@ -230,7 +248,6 @@ export default function HomeScreen() {
     >
       <StatusBar
         style="light"
-        backgroundColor="#06395E"
       />
 
       <ScrollView
@@ -283,17 +300,18 @@ export default function HomeScreen() {
                   styles.greeting
                 }
               >
-                Good morning,
+                Happy {dayName},
               </Text>
 
               <Text
                 style={
                   styles.employeeName
                 }
-                numberOfLines={1}
+                numberOfLines={
+                  1
+                }
               >
-                {user?.name ??
-                  'Employee'}
+                {firstName}
               </Text>
 
               <Text
@@ -351,7 +369,9 @@ export default function HomeScreen() {
             >
               <Ionicons
                 name="camera"
-                size={31}
+                size={
+                  31
+                }
                 color="#FFFFFF"
               />
             </View>
@@ -387,7 +407,9 @@ export default function HomeScreen() {
           >
             <Ionicons
               name="arrow-forward"
-              size={20}
+              size={
+                20
+              }
               color="#0767A7"
             />
           </View>
@@ -504,7 +526,9 @@ export default function HomeScreen() {
             >
               <Ionicons
                 name="alert-circle-outline"
-                size={24}
+                size={
+                  24
+                }
                 color="#B23B34"
               />
 
@@ -542,7 +566,9 @@ export default function HomeScreen() {
             >
               <Ionicons
                 name="receipt-outline"
-                size={27}
+                size={
+                  27
+                }
                 color="#8DA2B3"
               />
 
@@ -611,7 +637,9 @@ export default function HomeScreen() {
         >
           <Ionicons
             name="home"
-            size={22}
+            size={
+              22
+            }
             color="#0868AE"
           />
 
@@ -636,7 +664,9 @@ export default function HomeScreen() {
         >
           <Ionicons
             name="camera"
-            size={28}
+            size={
+              28
+            }
             color="#FFFFFF"
           />
         </Pressable>
@@ -653,7 +683,9 @@ export default function HomeScreen() {
         >
           <Ionicons
             name="receipt-outline"
-            size={22}
+            size={
+              22
+            }
             color="#8DA2B3"
           />
 
@@ -677,9 +709,11 @@ export default function HomeScreen() {
  */
 
 type StatusCardProps = {
-  value: number;
+  value:
+    number;
 
-  label: string;
+  label:
+    string;
 
   status:
     HomeStatus;
@@ -733,8 +767,12 @@ function StatusCard({
       ]}
     >
       <Ionicons
-        name={icon}
-        size={18}
+        name={
+          icon
+        }
+        size={
+          18
+        }
         color={
           theme.foreground
         }
@@ -831,10 +869,14 @@ function ExpenseRow({
         }
       >
         <Ionicons
-          name={getCategoryIcon(
-            expense.category,
-          )}
-          size={22}
+          name={
+            getCategoryIcon(
+              expense.category,
+            )
+          }
+          size={
+            22
+          }
           color="#0868AE"
         />
       </View>
@@ -845,7 +887,9 @@ function ExpenseRow({
         }
       >
         <Text
-          numberOfLines={1}
+          numberOfLines={
+            1
+          }
           style={
             styles.expenseCategory
           }
@@ -854,12 +898,16 @@ function ExpenseRow({
         </Text>
 
         <Text
-          numberOfLines={1}
+          numberOfLines={
+            1
+          }
           style={
             styles.expensePurpose
           }
         >
-          {expense.business_purpose}
+          {
+            expense.business_purpose
+          }
         </Text>
 
         <Text
@@ -867,10 +915,12 @@ function ExpenseRow({
             styles.expenseDate
           }
         >
-          {formatExpenseDate(
-            expense.submitted_at ??
-              expense.created_at,
-          )}
+          {
+            formatExpenseDate(
+              expense.submitted_at ??
+                expense.created_at,
+            )
+          }
         </Text>
       </View>
 
@@ -913,6 +963,49 @@ function ExpenseRow({
  * ------------------------------------------------
  */
 
+function getFirstName(
+  name?: string,
+  email?: string,
+): string {
+  const cleanName =
+    name
+      ?.trim();
+
+  if (cleanName) {
+    const parts =
+      cleanName
+        .split(
+          /\s+/,
+        )
+        .filter(
+          Boolean,
+        );
+
+    if (
+      parts.length >
+      0
+    ) {
+      return parts[0];
+    }
+  }
+
+  const emailUsername =
+    email
+      ?.trim()
+      .split(
+        '@',
+      )[0]
+      ?.trim();
+
+  if (
+    emailUsername
+  ) {
+    return emailUsername;
+  }
+
+  return 'Employee';
+}
+
 function getInitials(
   name?: string,
 ) {
@@ -923,27 +1016,37 @@ function getInitials(
   const parts =
     name
       .trim()
-      .split(/\s+/)
-      .filter(Boolean);
+      .split(
+        /\s+/,
+      )
+      .filter(
+        Boolean,
+      );
 
   if (
-    parts.length === 0
+    parts.length ===
+    0
   ) {
     return 'SA';
   }
 
   if (
-    parts.length === 1
+    parts.length ===
+    1
   ) {
     return parts[0]
-      .slice(0, 2)
+      .slice(
+        0,
+        2,
+      )
       .toUpperCase();
   }
 
   return (
     parts[0][0] +
     parts[
-      parts.length - 1
+      parts.length -
+        1
     ][0]
   ).toUpperCase();
 }
@@ -952,7 +1055,9 @@ function getStatusLabel(
   status:
     ExpenseStatus,
 ) {
-  switch (status) {
+  switch (
+    status
+  ) {
     case 'SUBMITTED':
       return 'Submitted';
 
@@ -1082,7 +1187,8 @@ function getCategoryIcon(
 const styles =
   StyleSheet.create({
     container: {
-      flex: 1,
+      flex:
+        1,
 
       backgroundColor:
         '#F4F8FB',
@@ -1171,7 +1277,8 @@ const styles =
     },
 
     headerText: {
-      flex: 1,
+      flex:
+        1,
     },
 
     brandMini: {
@@ -1369,7 +1476,8 @@ const styles =
     },
 
     captureContent: {
-      flex: 1,
+      flex:
+        1,
 
       marginLeft:
         15,
@@ -1438,7 +1546,8 @@ const styles =
     },
 
     statusCard: {
-      flex: 1,
+      flex:
+        1,
 
       height:
         108,

@@ -1,17 +1,31 @@
-import { z } from 'zod';
+import {
+  z,
+} from 'zod';
+
+const attendeeTypeSchema =
+  z.enum([
+    'WAVETRONIX_EMPLOYEE',
+    'NON_WAVETRONIX',
+  ]);
 
 const attendeeSchema =
-  z
-    .string()
-    .trim()
-    .min(
-      1,
-      'Attendee name cannot be empty.',
-    )
-    .max(
-      255,
-      'Attendee name is too long.',
-    );
+  z.object({
+    name:
+      z
+        .string()
+        .trim()
+        .min(
+          1,
+          'Attendee name cannot be empty.',
+        )
+        .max(
+          255,
+          'Attendee name is too long.',
+        ),
+
+    attendeeType:
+      attendeeTypeSchema,
+  });
 
 export const createExpenseSchema =
   z.object({

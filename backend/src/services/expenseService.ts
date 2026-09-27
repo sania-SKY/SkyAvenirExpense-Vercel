@@ -1,17 +1,17 @@
 import {
-    pool,
+  pool,
 } from '../database/pool.js';
 
 import type {
-    AuthenticatedUser,
+  AuthenticatedUser,
 } from '../middleware/auth.js';
 
 import type {
-    CreateExpenseInput,
+  CreateExpenseInput,
 } from '../types/expense.js';
 
 import {
-    resolveUserId,
+  resolveUserId,
 } from './userService.js';
 
 /*
@@ -37,10 +37,6 @@ export async function createExpense(
       'BEGIN',
     );
 
-    /*
-     * Convert Google/Microsoft/etc. provider identity
-     * into our internal PostgreSQL users.id UUID.
-     */
     const userId =
       await resolveUserId(
         client,
@@ -95,10 +91,12 @@ export async function createExpense(
       expenseResult.rows[0];
 
     /*
-     * Insert attendees using one query.
+     * Insert attendee name + attendee type.
      */
+
     if (
-      input.attendees.length > 0
+      input.attendees.length >
+      0
     ) {
       const values:
         string[] = [];
@@ -107,20 +105,21 @@ export async function createExpense(
         unknown[] = [];
 
       input.attendees.forEach(
-        (name, index) => {
-          const expenseParam =
-            index * 2 + 1;
-
-          const nameParam =
-            index * 2 + 2;
+        (
+          attendee,
+          index,
+        ) => {
+          const base =
+            index * 3;
 
           values.push(
-            `($${expenseParam}, $${nameParam})`,
+            `($${base + 1}, $${base + 2}, $${base + 3})`,
           );
 
           params.push(
             expense.id,
-            name,
+            attendee.name,
+            attendee.attendeeType,
           );
         },
       );
@@ -129,7 +128,8 @@ export async function createExpense(
         `
           INSERT INTO expense_attendees (
             expense_id,
-            name
+            name,
+            attendee_type
           )
           VALUES
           ${values.join(', ')}
@@ -140,11 +140,8 @@ export async function createExpense(
 
     /*
      * Queue external integration.
-     *
-     * COMPANY_API_ENABLED can remain false.
-     * The network integration does not block
-     * creation of the expense.
      */
+
     await client.query(
       `
         INSERT INTO integration_jobs (
@@ -170,8 +167,29 @@ export async function createExpense(
     return {
       ...expense,
 
+      /*
+       * Keep plain attendees for existing
+       * mobile screens.
+       */
       attendees:
-        input.attendees,
+        input.attendees.map(
+          (attendee) =>
+            attendee.name,
+        ),
+
+      /*
+       * New typed attendee data.
+       */
+      attendee_details:
+        input.attendees.map(
+          (attendee) => ({
+            name:
+              attendee.name,
+
+            attendeeType:
+              attendee.attendeeType,
+          }),
+        ),
     };
   } catch (error) {
     await client.query(
@@ -186,8 +204,8 @@ export async function createExpense(
 
 /*
  * ------------------------------------------------
- * Return only expenses belonging to the currently
- * authenticated employee.
+ * Return expenses belonging only to authenticated
+ * employee.
  * ------------------------------------------------
  */
 
@@ -224,7 +242,24 @@ export async function getMyExpenses(
               WHERE ea.id IS NOT NULL
             ),
             '[]'::json
-          ) AS attendees
+          ) AS attendees,
+
+          COALESCE(
+            json_agg(
+              json_build_object(
+                'name',
+                ea.name,
+
+                'attendeeType',
+                ea.attendee_type
+              )
+              ORDER BY ea.created_at
+            )
+            FILTER (
+              WHERE ea.id IS NOT NULL
+            ),
+            '[]'::json
+          ) AS attendee_details
 
         FROM expenses e
 
@@ -239,7 +274,8 @@ export async function getMyExpenses(
           AND
           u.provider_user_id = $2
 
-        GROUP BY e.id
+        GROUP BY
+          e.id
 
         ORDER BY
           e.submitted_at DESC
@@ -298,7 +334,24 @@ export async function getExpenseById(
               WHERE ea.id IS NOT NULL
             ),
             '[]'::json
-          ) AS attendees
+          ) AS attendees,
+
+          COALESCE(
+            json_agg(
+              json_build_object(
+                'name',
+                ea.name,
+
+                'attendeeType',
+                ea.attendee_type
+              )
+              ORDER BY ea.created_at
+            )
+            FILTER (
+              WHERE ea.id IS NOT NULL
+            ),
+            '[]'::json
+          ) AS attendee_details
 
         FROM expenses e
 
@@ -315,7 +368,8 @@ export async function getExpenseById(
           AND
           u.provider_user_id = $3
 
-        GROUP BY e.id
+        GROUP BY
+          e.id
 
         LIMIT 1
       `,
