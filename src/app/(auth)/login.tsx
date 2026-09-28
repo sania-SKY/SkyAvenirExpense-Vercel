@@ -8,10 +8,6 @@ import {
 } from '@expo/vector-icons';
 
 import {
-  LinearGradient,
-} from 'expo-linear-gradient';
-
-import {
   router,
 } from 'expo-router';
 
@@ -29,7 +25,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  View
+  View,
 } from 'react-native';
 
 import {
@@ -78,6 +74,16 @@ export default function LoginScreen() {
   ] =
     useState('');
 
+  /*
+   * Synchronous guard.
+   *
+   * React state updates are asynchronous,
+   * so this prevents two very fast taps
+   * from starting two login requests.
+   */
+  const signingInRef =
+    useRef(false);
+
   const screenOpacity =
     useRef(
       new Animated.Value(
@@ -111,43 +117,112 @@ export default function LoginScreen() {
     ).start();
   }
 
- async function handleSignIn() {
-  if (isSigningIn) {
-    return;
-  }
+  async function handleSignIn() {
+    if (
+      signingInRef.current
+    ) {
+      return;
+    }
 
-  try {
-    setLoginError('');
-    setIsSigningIn(true);
+    const cleanEmail =
+      workEmail
+        .trim()
+        .toLowerCase();
 
-    await signInWithWorkEmail(
-      workEmail,
-      password,
-    );
+    if (
+      !cleanEmail ||
+      !password
+    ) {
+      return;
+    }
 
-    router.replace(
-      '/(tabs)/home',
-    );
-  } catch (error) {
-    const message =
-      error instanceof Error
-        ? error.message
-        : 'Unable to sign in.';
-
-    console.log(
-      'Work email sign-in:',
-      error,
-    );
+    signingInRef.current =
+      true;
 
     setLoginError(
-      message,
+      '',
     );
-  } finally {
+
     setIsSigningIn(
-      false,
+      true,
     );
+
+    try {
+      await signInWithWorkEmail(
+        cleanEmail,
+        password,
+      );
+
+      /*
+       * signInWithWorkEmail resolves only
+       * after the authenticated session
+       * has been created successfully.
+       */
+      router.replace(
+        '/(tabs)/home',
+      );
+
+      /*
+       * Do not reset Login state here.
+       *
+       * This screen is being replaced.
+       */
+      return;
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Unable to sign in.';
+
+      console.error(
+        'Work email sign-in failed:',
+        error,
+      );
+
+      setLoginError(
+        message,
+      );
+
+      setIsSigningIn(
+        false,
+      );
+
+      signingInRef.current =
+        false;
+    }
   }
-}
+
+  function handleEmailChange(
+    value: string,
+  ) {
+    setWorkEmail(
+      value,
+    );
+
+    if (
+      loginError
+    ) {
+      setLoginError(
+        '',
+      );
+    }
+  }
+
+  function handlePasswordChange(
+    value: string,
+  ) {
+    setPassword(
+      value,
+    );
+
+    if (
+      loginError
+    ) {
+      setLoginError(
+        '',
+      );
+    }
+  }
 
   const canSubmit =
     workEmail
@@ -211,6 +286,11 @@ export default function LoginScreen() {
                   false
                 }
               >
+                {/*
+                 * Space reserved for the
+                 * Sky Avenir logo embedded
+                 * in login-bg.png.
+                 */}
                 <View
                   style={
                     styles.logoSpace
@@ -250,6 +330,7 @@ export default function LoginScreen() {
                     }
                   >
                     Sign in with your
+                    {' '}
                     Sky Avenir work account
                     {'\n'}
                     to continue
@@ -285,7 +366,7 @@ export default function LoginScreen() {
                         workEmail
                       }
                       onChangeText={
-                        setWorkEmail
+                        handleEmailChange
                       }
                       placeholder="name@skyavenir.com"
                       placeholderTextColor="#8DA3B5"
@@ -330,7 +411,7 @@ export default function LoginScreen() {
                         password
                       }
                       onChangeText={
-                        setPassword
+                        handlePasswordChange
                       }
                       placeholder="Enter your password"
                       placeholderTextColor="#8DA3B5"
@@ -355,6 +436,9 @@ export default function LoginScreen() {
                     />
 
                     <Pressable
+                      disabled={
+                        isSigningIn
+                      }
                       onPress={() =>
                         setShowPassword(
                           (current) =>
@@ -384,50 +468,38 @@ export default function LoginScreen() {
                     onPress={
                       handleSignIn
                     }
-                    style={
-                      styles.signInWrapper
-                    }
+                    style={({
+                      pressed,
+                    }) => [
+                      styles.signInButton,
+
+                      !canSubmit &&
+                        styles.signInButtonDisabled,
+
+                      pressed &&
+                        canSubmit &&
+                        styles.signInButtonPressed,
+                    ]}
                   >
-                    <LinearGradient
-                      colors={[
-                        '#075FA8',
-                        '#1385D2',
-                      ]}
-                      start={{
-                        x:
-                          0,
-                        y:
-                          0,
-                      }}
-                      end={{
-                        x:
-                          1,
-                        y:
-                          0,
-                      }}
-                      style={[
-                        styles.signInButton,
+                    <Ionicons
+                      name={
+                        isSigningIn
+                          ? 'hourglass-outline'
+                          : 'log-in-outline'
+                      }
+                      size={20}
+                      color="#FFFFFF"
+                    />
 
-                        !canSubmit &&
-                          styles.signInButtonDisabled,
-                      ]}
+                    <Text
+                      style={
+                        styles.signInText
+                      }
                     >
-                      <Ionicons
-                        name="log-in-outline"
-                        size={21}
-                        color="#FFFFFF"
-                      />
-
-                      <Text
-                        style={
-                          styles.signInText
-                        }
-                      >
-                        {isSigningIn
-                          ? 'Signing in...'
-                          : 'Sign In'}
-                      </Text>
-                    </LinearGradient>
+                      {isSigningIn
+                        ? 'Signing in...'
+                        : 'Sign In'}
+                    </Text>
                   </Pressable>
 
                   {loginError ? (
@@ -489,55 +561,63 @@ export default function LoginScreen() {
                       }
                     >
                       Sign in using your approved
+                      {' '}
                       Sky Avenir employee account.
                     </Text>
                   </View>
                 </View>
 
-                <View 
-  style={ 
-    styles.accountActions 
-  } 
-> 
- <Pressable
-  onPress={() =>
-    router.push(
-      '/(auth)/forgot-password',
-    )
-  }
->
-  <Text
-    style={
-      styles.forgotPasswordText
-    }
-  >
-    Forgot Password?
-  </Text>
-</Pressable>
- 
-  <Pressable 
-    onPress={() => 
-      router.push( 
-        '/(auth)/create-account', 
-      ) 
-    } 
-  > 
-    <Text 
-      style={ 
-        styles.createAccountText 
-      } 
-    > 
-      First time here?{' '} 
-      <Text 
-        style={ 
-          styles.createAccountStrong 
-        } 
-      > 
-        Create Account 
-      </Text> 
-    </Text> 
-  </Pressable> 
-</View>
+                <View
+                  style={
+                    styles.accountActions
+                  }
+                >
+                  <Pressable
+                    disabled={
+                      isSigningIn
+                    }
+                    onPress={() =>
+                      router.push(
+                        '/(auth)/forgot-password',
+                      )
+                    }
+                  >
+                    <Text
+                      style={
+                        styles.forgotPasswordText
+                      }
+                    >
+                      Forgot Password?
+                    </Text>
+                  </Pressable>
+
+                  <Pressable
+                    disabled={
+                      isSigningIn
+                    }
+                    onPress={() =>
+                      router.push(
+                        '/(auth)/create-account',
+                      )
+                    }
+                  >
+                    <Text
+                      style={
+                        styles.createAccountText
+                      }
+                    >
+                      First time here?{' '}
+
+                      <Text
+                        style={
+                          styles.createAccountStrong
+                        }
+                      >
+                        Create Account
+                      </Text>
+                    </Text>
+                  </Pressable>
+                </View>
 
                 <View
                   style={
@@ -604,9 +684,16 @@ const styles =
         28,
     },
 
+    /*
+     * Reduced from 215.
+     *
+     * This pulls EXPENSE closer to
+     * the Sky Avenir logo embedded
+     * in the background artwork.
+     */
     logoSpace: {
       height:
-        215,
+        166,
     },
 
     expenseText: {
@@ -617,18 +704,18 @@ const styles =
         9.5,
 
       fontWeight:
-        '500',
+        '600',
 
       letterSpacing:
-        6,
+        5.5,
 
       color:
-        '#6E8BA5',
+        '#567A98',
     },
 
     goldLine: {
       width:
-        48,
+        44,
 
       height:
         2,
@@ -637,7 +724,7 @@ const styles =
         'center',
 
       marginTop:
-        10,
+        8,
 
       borderRadius:
         10,
@@ -651,7 +738,7 @@ const styles =
         'center',
 
       marginTop:
-        15,
+        12,
     },
 
     welcome: {
@@ -702,10 +789,27 @@ const styles =
         'rgba(183,207,223,0.76)',
 
       backgroundColor:
-        'rgba(255,255,255,0.94)',
+        'rgba(255,255,255,0.96)',
 
       elevation:
         2,
+
+      shadowColor:
+        '#07304E',
+
+      shadowOpacity:
+        0.06,
+
+      shadowRadius:
+        12,
+
+      shadowOffset: {
+        width:
+          0,
+
+        height:
+          5,
+      },
     },
 
     fieldLabel: {
@@ -770,23 +874,18 @@ const styles =
         '#163D5C',
     },
 
-    signInWrapper: {
-      marginTop:
-        18,
-
-      borderRadius:
-        15,
-
-      overflow:
-        'hidden',
-
-      elevation:
-        3,
-    },
-
+    /*
+     * Premium solid button.
+     *
+     * Avoids the faded gradient look
+     * from the previous implementation.
+     */
     signInButton: {
       height:
         54,
+
+      marginTop:
+        18,
 
       flexDirection:
         'row',
@@ -802,16 +901,57 @@ const styles =
 
       borderRadius:
         15,
+
+      backgroundColor:
+        '#0868AE',
+
+      elevation:
+        3,
+
+      shadowColor:
+        '#073C64',
+
+      shadowOpacity:
+        0.16,
+
+      shadowRadius:
+        8,
+
+      shadowOffset: {
+        width:
+          0,
+
+        height:
+          4,
+      },
+    },
+
+    signInButtonPressed: {
+      opacity:
+        0.92,
+
+      transform: [
+        {
+          scale:
+            0.995,
+        },
+      ],
     },
 
     signInButtonDisabled: {
-      opacity:
-        0.55,
+      backgroundColor:
+        '#9DBDD3',
+
+      elevation:
+        0,
+
+      shadowOpacity:
+        0,
     },
 
     signInText: {
       fontSize:
-        15,
+        15.5,
 
       fontWeight:
         '700',
@@ -937,26 +1077,43 @@ const styles =
     },
 
     accountActions: {
-  marginTop: 14,
-  alignItems: 'center',
-  gap: 12,
-},
+      marginTop:
+        14,
 
-forgotPasswordText: {
-  fontSize: 11.5,
-  fontWeight: '600',
-  color: '#0868AE',
-},
+      alignItems:
+        'center',
 
-createAccountText: {
-  fontSize: 11.5,
-  color: '#56758D',
-},
+      gap:
+        12,
+    },
 
-createAccountStrong: {
-  fontWeight: '700',
-  color: '#0868AE',
-},
+    forgotPasswordText: {
+      fontSize:
+        11.5,
+
+      fontWeight:
+        '600',
+
+      color:
+        '#0868AE',
+    },
+
+    createAccountText: {
+      fontSize:
+        11.5,
+
+      color:
+        '#56758D',
+    },
+
+    createAccountStrong: {
+      fontWeight:
+        '700',
+
+      color:
+        '#0868AE',
+    },
+
     footer: {
       marginTop:
         22,
