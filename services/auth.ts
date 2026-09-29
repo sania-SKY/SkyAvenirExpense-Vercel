@@ -1,4 +1,5 @@
 import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
 
 export type AuthProvider =
   | 'email';
@@ -271,14 +272,88 @@ function normalizeUser(
  * ------------------------------------------------
  * SECURE SESSION STORAGE
  * ------------------------------------------------
+ *
+ * expo-secure-store has no web implementation.
+ *
+ * On web, fall back to localStorage. This is not
+ * as secure as the native Keychain/Keystore, but
+ * it is only used for the browser-based preview
+ * of this app, not the shipped native builds.
+ * ------------------------------------------------
  */
+
+async function setStoredValue(
+  key:
+    string,
+
+  value:
+    string,
+): Promise<void> {
+  if (
+    Platform.OS ===
+    'web'
+  ) {
+    globalThis.localStorage?.setItem(
+      key,
+      value,
+    );
+
+    return;
+  }
+
+  await SecureStore.setItemAsync(
+    key,
+    value,
+  );
+}
+
+async function getStoredValue(
+  key:
+    string,
+): Promise<string | null> {
+  if (
+    Platform.OS ===
+    'web'
+  ) {
+    return (
+      globalThis.localStorage?.getItem(
+        key,
+      ) ??
+      null
+    );
+  }
+
+  return await SecureStore.getItemAsync(
+    key,
+  );
+}
+
+async function deleteStoredValue(
+  key:
+    string,
+): Promise<void> {
+  if (
+    Platform.OS ===
+    'web'
+  ) {
+    globalThis.localStorage?.removeItem(
+      key,
+    );
+
+    return;
+  }
+
+  await SecureStore.deleteItemAsync(
+    key,
+  );
+}
 
 async function saveSession(
   session:
     StoredSession,
 ): Promise<void> {
   try {
-    await SecureStore.setItemAsync(
+    await setStoredValue(
       SESSION_STORAGE_KEY,
       JSON.stringify(
         session,
@@ -299,7 +374,7 @@ async function saveSession(
 async function removeStoredSession():
   Promise<void> {
   try {
-    await SecureStore.deleteItemAsync(
+    await deleteStoredValue(
       SESSION_STORAGE_KEY,
     );
   } catch (error) {
@@ -453,7 +528,7 @@ export async function restoreSession():
 
   try {
     rawSession =
-      await SecureStore.getItemAsync(
+      await getStoredValue(
         SESSION_STORAGE_KEY,
       );
   } catch (error) {

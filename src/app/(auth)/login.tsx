@@ -32,12 +32,20 @@ import {
   signInWithWorkEmail,
 } from '../../../services/auth';
 
+import {
+  useAuth,
+} from '../../context/AuthContext';
+
 const backgroundImage =
   require(
     '../../../assets/images/login-bg.png',
   );
 
 export default function LoginScreen() {
+  const {
+    markAuthenticated,
+  } = useAuth();
+
   const [
     backgroundReady,
     setBackgroundReady,
@@ -148,16 +156,21 @@ export default function LoginScreen() {
     );
 
     try {
-      await signInWithWorkEmail(
-        cleanEmail,
-        password,
-      );
+      const signedInUser =
+        await signInWithWorkEmail(
+          cleanEmail,
+          password,
+        );
 
       /*
        * signInWithWorkEmail resolves only
        * after the authenticated session
        * has been created successfully.
        */
+      markAuthenticated(
+        signedInUser,
+      );
+
       router.replace(
         '/(tabs)/home',
       );

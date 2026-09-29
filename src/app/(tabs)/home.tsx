@@ -27,8 +27,15 @@ import {
 
 import {
   authenticatedFetch,
-  getCurrentUser,
 } from '../../../services/auth';
+
+import {
+  useAuth,
+} from '../../context/AuthContext';
+
+import {
+  confirmAction,
+} from '../../utils/confirm';
 
 type ExpenseStatus =
   | 'SUBMITTED'
@@ -85,8 +92,42 @@ type HomeStatus =
   | 'Needs Review';
 
 export default function HomeScreen() {
-  const user =
-    getCurrentUser();
+  const {
+    user,
+    status,
+    signOutUser,
+  } = useAuth();
+
+  /*
+   * ------------------------------------------------
+   * SIGN OUT
+   * ------------------------------------------------
+   *
+   * Clears the in-memory token and the stored
+   * session, then the root layout guard sends the
+   * user back to the login screen.
+   * ------------------------------------------------
+   */
+  function confirmSignOut() {
+    confirmAction({
+      title:
+        'Sign out',
+
+      message:
+        'You will need to sign in again to submit expenses.',
+
+      confirmLabel:
+        'Sign out',
+
+      destructive:
+        true,
+
+      onConfirm:
+        () => {
+          void signOutUser();
+        },
+    });
+  }
 
   const [
     expenses,
@@ -175,10 +216,26 @@ export default function HomeScreen() {
   useFocusEffect(
     useCallback(
       () => {
+        /*
+         * Child effects run before the root layout's
+         * redirect guard, so without this check a
+         * signed-out visitor landing directly on
+         * /home would fire one doomed request and
+         * flash a session error before being sent to
+         * the login screen.
+         */
+        if (
+          status !==
+          'authenticated'
+        ) {
+          return;
+        }
+
         loadExpenses();
       },
       [
         loadExpenses,
+        status,
       ],
     ),
   );
@@ -319,24 +376,70 @@ export default function HomeScreen() {
                   styles.subtitle
                 }
               >
-                Let's take care of
+                Let&apos;s take care of
                 your expenses.
               </Text>
             </View>
 
-            <Pressable
+            <View
               style={
-                styles.avatar
+                styles.headerActions
               }
             >
-              <Text
-                style={
-                  styles.avatarText
+              <Pressable
+                onPress={
+                  confirmSignOut
                 }
+                accessibilityRole="button"
+                accessibilityLabel="Sign out"
+                style={({
+                  pressed,
+                }) => [
+                  styles.avatar,
+
+                  pressed &&
+                    styles.avatarPressed,
+                ]}
               >
-                {initials}
-              </Text>
-            </Pressable>
+                <Text
+                  style={
+                    styles.avatarText
+                  }
+                >
+                  {initials}
+                </Text>
+              </Pressable>
+
+              <Pressable
+                onPress={
+                  confirmSignOut
+                }
+                accessibilityRole="button"
+                accessibilityLabel="Sign out"
+                style={({
+                  pressed,
+                }) => [
+                  styles.signOutButton,
+
+                  pressed &&
+                    styles.signOutButtonPressed,
+                ]}
+              >
+                <Ionicons
+                  name="log-out-outline"
+                  size={14}
+                  color="#FFFFFF"
+                />
+
+                <Text
+                  style={
+                    styles.signOutText
+                  }
+                >
+                  Sign out
+                </Text>
+              </Pressable>
+            </View>
           </View>
         </View>
 
@@ -1337,6 +1440,14 @@ const styles =
         'rgba(255,255,255,0.74)',
     },
 
+    headerActions: {
+      alignItems:
+        'center',
+
+      gap:
+        8,
+    },
+
     avatar: {
       width:
         48,
@@ -1361,6 +1472,56 @@ const styles =
 
       borderColor:
         'rgba(255,255,255,0.20)',
+    },
+
+    avatarPressed: {
+      opacity:
+        0.75,
+    },
+
+    signOutButton: {
+      flexDirection:
+        'row',
+
+      alignItems:
+        'center',
+
+      gap:
+        4,
+
+      paddingVertical:
+        5,
+
+      paddingHorizontal:
+        9,
+
+      borderRadius:
+        14,
+
+      backgroundColor:
+        'rgba(255,255,255,0.14)',
+
+      borderWidth:
+        1,
+
+      borderColor:
+        'rgba(255,255,255,0.22)',
+    },
+
+    signOutButtonPressed: {
+      backgroundColor:
+        'rgba(255,255,255,0.26)',
+    },
+
+    signOutText: {
+      fontSize:
+        11,
+
+      fontWeight:
+        '600',
+
+      color:
+        '#FFFFFF',
     },
 
     avatarText: {

@@ -415,30 +415,56 @@ if (
        * PREPARE ACTUAL RECEIPT FILE
        * ------------------------------------------------
        *
-       * Expo SDK uses its File implementation
-       * with expo/fetch for multipart FormData.
+       * Native (iOS/Android):
+       *   Expo SDK's File implementation, uploaded
+       *   with expo/fetch for multipart FormData.
+       *
+       * Web:
+       *   receipt.uri is a blob:/data: URI, not a
+       *   device file path. expo-file-system's File
+       *   and expo/fetch do not support that on web,
+       *   so the blob is fetched directly and posted
+       *   with the browser's native fetch/FormData.
        */
-
-      const receiptFile =
-        new File(
-          receipt.uri,
-        );
-
-      if (
-        !receiptFile.exists
-      ) {
-        throw new Error(
-          'The receipt file could not be found on this device.',
-        );
-      }
 
       const formData =
         new FormData();
 
-      formData.append(
-        'receipt',
-        receiptFile,
-      );
+      if (
+        Platform.OS ===
+        'web'
+      ) {
+        const receiptBlob =
+          await (
+            await fetch(
+              receipt.uri,
+            )
+          ).blob();
+
+        formData.append(
+          'receipt',
+          receiptBlob,
+          'receipt.jpg',
+        );
+      } else {
+        const receiptFile =
+          new File(
+            receipt.uri,
+          );
+
+        if (
+          !receiptFile.exists
+        ) {
+          throw new Error(
+            'The receipt file could not be found on this device.',
+          );
+        }
+
+        formData.append(
+          'receipt',
+          receiptFile,
+        );
+      }
 
       /*
        * ------------------------------------------------
@@ -448,15 +474,22 @@ if (
        *
        * IMPORTANT:
        * Do NOT manually set Content-Type.
-       * expo/fetch creates the multipart boundary.
+       * fetch/expo-fetch create the multipart
+       * boundary automatically for FormData bodies.
        */
 
       console.log(
         '[Expense] Uploading receipt...',
       );
 
+      const uploadFetch =
+        Platform.OS ===
+        'web'
+          ? fetch
+          : expoFetch;
+
       const uploadResponse =
-        await expoFetch(
+        await uploadFetch(
           `${API_BASE_URL}/api/expenses/upload`,
           {
             method:

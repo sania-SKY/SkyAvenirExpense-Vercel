@@ -29,7 +29,15 @@ import {
   registerWithWorkEmail,
 } from '../../../services/auth';
 
+import {
+  useAuth,
+} from '../../context/AuthContext';
+
 export default function CreateAccountScreen() {
+  const {
+    markAuthenticated,
+  } = useAuth();
+
   const [
     name,
     setName,
@@ -153,15 +161,20 @@ export default function CreateAccountScreen() {
         true,
       );
 
-      await registerWithWorkEmail({
-        name:
-          cleanName,
+      const createdUser =
+        await registerWithWorkEmail({
+          name:
+            cleanName,
 
-        email:
-          cleanEmail,
+          email:
+            cleanEmail,
 
-        password,
-      });
+          password,
+        });
+
+      markAuthenticated(
+        createdUser,
+      );
 
       router.replace(
         '/(tabs)/home',

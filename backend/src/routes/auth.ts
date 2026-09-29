@@ -185,7 +185,17 @@ const genericForgotPasswordResponse = {
  * ------------------------------------------------
  * SESSION TOKEN
  * ------------------------------------------------
+ *
+ * The app stores this token on the device and
+ * restores it on launch, so a short lifetime would
+ * force a fresh sign-in mid-demo. 30 days keeps a
+ * Home Screen install signed in without needing a
+ * refresh-token flow.
+ * ------------------------------------------------
  */
+
+const SESSION_TOKEN_LIFETIME =
+  '30d';
 
 async function createSessionToken(
   databaseUserId:
@@ -222,7 +232,7 @@ async function createSessionToken(
     )
     .setIssuedAt()
     .setExpirationTime(
-      '8h',
+      SESSION_TOKEN_LIFETIME,
     )
     .sign(
       getSessionSecret(),

@@ -1,0 +1,50 @@
+diff --git a/node_modules/expo-camera/build/web/WebCameraUtils.js b/node_modules/expo-camera/build/web/WebCameraUtils.js
+index 9fc05b8..18c4671 100644
+--- a/node_modules/expo-camera/build/web/WebCameraUtils.js
++++ b/node_modules/expo-camera/build/web/WebCameraUtils.js
+@@ -125,7 +125,44 @@ export async function getPreferredStreamDevice(preferredCameraType, preferredWid
+ }
+ export async function getStreamDevice(preferredCameraType, preferredWidth, preferredHeight) {
+     const constraints = getIdealConstraints(preferredCameraType, preferredWidth, preferredHeight);
+-    return requestUserMediaAsync(constraints);
++    const stream = await requestUserMediaAsync(constraints);
++    if (preferredCameraType === 'back' && isWebKit()) {
++        await forceStandardBackLensZoom(stream);
++    }
++    return stream;
++}
++// PATCH (sky-avenir-expense, via patch-package):
++// On iPhones with multiple rear lenses, Safari can expose the ultra-wide,
++// wide, and telephoto lenses as ONE unified "back camera" device with a
++// single zoom range (e.g. 0.5x-2x), where 1x = the standard wide lens.
++// getUserMedia({ facingMode: 'environment' }) alone does not guarantee
++// which point in that zoom range is used, and in practice often starts at
++// the ultra-wide (0.5x) end - producing photos with a much wider field of
++// view / more "distant" looking subject than what's framed on-screen.
++// Explicitly pin the zoom to 1x (clamped to the supported range) whenever
++// the capability range dips below 1, which only unified multi-lens
++// devices report; single-lens devices are left untouched.
++async function forceStandardBackLensZoom(stream) {
++    const track = stream.getVideoTracks?.()[0];
++    if (!track || typeof track.getCapabilities !== 'function') {
++        return;
++    }
++    try {
++        const capabilities = track.getCapabilities();
++        const zoomRange = capabilities.zoom;
++        if (zoomRange &&
++            typeof zoomRange.min === 'number' &&
++            typeof zoomRange.max === 'number' &&
++            zoomRange.min < 1) {
++            const target = Math.min(zoomRange.max, Math.max(zoomRange.min, 1));
++            await track.applyConstraints({ advanced: [{ zoom: target }] });
++        }
++    }
++    catch (error) {
++        if (__DEV__) {
++            console.warn('Unable to force standard back camera lens zoom:', error);
++        }
++    }
+ }
+ export function isWebKit() {
+     return /WebKit/.test(navigator.userAgent) && !/Edg/.test(navigator.userAgent);

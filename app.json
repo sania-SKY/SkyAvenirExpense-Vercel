@@ -26,6 +26,8 @@
       "predictiveBackGestureEnabled": false,
       "permissions": [
         "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO"
       ]
     },
@@ -68,8 +70,15 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "1cafa76d-5969-4560-9a20-f3d671e52f79"
+        "projectId": "2458c49a-1feb-4f72-aa62-57536244debb"
       }
+    },
+    "owner": "saniasyed",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/2458c49a-1feb-4f72-aa62-57536244debb"
     }
   }
 }

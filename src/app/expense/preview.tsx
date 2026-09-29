@@ -29,6 +29,14 @@ import {
   useReceipt,
 } from '../../context/ReceiptContext';
 
+import {
+  ReceiptCropModal,
+} from '../../components/receipt-crop-modal';
+
+import type {
+  CropRegion,
+} from '../../components/receipt-crop-modal';
+
 export default function ReceiptPreviewScreen() {
   const {
     receipt,
@@ -51,6 +59,19 @@ export default function ReceiptPreviewScreen() {
     isProcessing,
     setIsProcessing,
   ] = useState(false);
+
+  const [
+    cropModalVisible,
+    setCropModalVisible,
+  ] = useState(false);
+
+  const [
+    cropImageDimensions,
+    setCropImageDimensions,
+  ] = useState<{
+    width: number;
+    height: number;
+  } | null>(null);
 
   const receiptUri =
     receipt?.uri ?? '';
@@ -118,118 +139,19 @@ export default function ReceiptPreviewScreen() {
   }
 }
 
- async function applyCrop(
-  percentage: number,
-) {
-  if (
-    !receiptUri ||
-    isProcessing
-  ) {
-    return;
-  }
-
-  try {
-    setIsProcessing(true);
-
-    const dimensions =
-      await getImageSize(
-        receiptUri,
-      );
-
-    const horizontal =
-      Math.max(
-        1,
-        Math.round(
-          dimensions.width *
-            percentage,
-        ),
-      );
-
-    const vertical =
-      Math.max(
-        1,
-        Math.round(
-          dimensions.height *
-            percentage,
-        ),
-      );
-
-    const width =
-      dimensions.width -
-      horizontal * 2;
-
-    const height =
-      dimensions.height -
-      vertical * 2;
-
-    if (
-      width <= 0 ||
-      height <= 0
-    ) {
-      throw new Error(
-        'Invalid crop dimensions.',
-      );
-    }
-
-    const result =
-      await ImageManipulator
-        .manipulateAsync(
-          receiptUri,
-
-          [
-            {
-              crop: {
-                originX:
-                  horizontal,
-
-                originY:
-                  vertical,
-
-                width,
-
-                height,
-              },
-            },
-          ],
-
-          {
-            compress:
-              0.88,
-
-            format:
-              ImageManipulator
-                .SaveFormat
-                .JPEG,
-          },
-        );
-
-    setImageLoaded(false);
-    setImageError(false);
-
-    updateReceiptUri(
-      result.uri,
-    );
-  } catch (error) {
-    console.error(
-      'Crop receipt error:',
-      error,
-    );
-
-    Alert.alert(
-      'Unable to crop receipt',
-      'Please try again.',
-    );
-  } finally {
-    setIsProcessing(false);
-  }
-}
   /*
    * ------------------------------------------------
-   * CROP OPTIONS
+   * CROP (interactive, drag-to-adjust)
+   * ------------------------------------------------
+   *
+   * Opens ReceiptCropModal with a movable /
+   * resizable rectangle over the image, similar to
+   * a normal photo editor, instead of a fixed
+   * "Light Crop / Tight Crop" percentage choice.
    * ------------------------------------------------
    */
 
-  function cropReceipt() {
+  async function cropReceipt() {
     if (
       !receiptUri ||
       isProcessing
@@ -237,42 +159,108 @@ export default function ReceiptPreviewScreen() {
       return;
     }
 
-    Alert.alert(
-      'Crop Receipt',
-      'Choose how much of the outer image area to remove.',
-      [
-        {
-          text:
-            'Cancel',
+    try {
+      const dimensions =
+        await getImageSize(
+          receiptUri,
+        );
 
-          style:
-            'cancel',
-        },
+      setCropImageDimensions(
+        dimensions,
+      );
 
-        {
-          text:
-            'Light Crop',
+      setCropModalVisible(
+        true,
+      );
+    } catch (error) {
+      console.error(
+        'Unable to read receipt dimensions:',
+        error,
+      );
 
-          onPress:
-            () => {
-              void applyCrop(
-                0.05,
-              );
+      Alert.alert(
+        'Unable to crop receipt',
+        'Please try again.',
+      );
+    }
+  }
+
+  async function handleApplyCrop(
+    region:
+      CropRegion,
+  ) {
+    setCropModalVisible(
+      false,
+    );
+
+    if (
+      !receiptUri ||
+      isProcessing
+    ) {
+      return;
+    }
+
+    try {
+      setIsProcessing(true);
+
+      const result =
+        await ImageManipulator
+          .manipulateAsync(
+            receiptUri,
+
+            [
+              {
+                crop: {
+                  originX:
+                    region.originX,
+
+                  originY:
+                    region.originY,
+
+                  width:
+                    region.width,
+
+                  height:
+                    region.height,
+                },
+              },
+            ],
+
+            {
+              compress:
+                0.88,
+
+              format:
+                ImageManipulator
+                  .SaveFormat
+                  .JPEG,
             },
-        },
+          );
 
-        {
-          text:
-            'Tight Crop',
+      setImageLoaded(false);
+      setImageError(false);
 
-          onPress:
-            () => {
-              void applyCrop(
-                0.1,
-              );
-            },
-        },
-      ],
+      updateReceiptUri(
+        result.uri,
+      );
+    } catch (error) {
+      console.error(
+        'Crop receipt error:',
+        error,
+      );
+
+      Alert.alert(
+        'Unable to crop receipt',
+        'Please try again.',
+      );
+    } finally {
+      setIsProcessing(false);
+    }
+  }
+
+  function handleCancelCrop() {
+    setCropModalVisible(
+      false,
     );
   }
 
@@ -810,8 +798,8 @@ export default function ReceiptPreviewScreen() {
             disabled={
               isProcessing
             }
-            onPress={
-              cropReceipt
+            onPress={() =>
+              void cropReceipt()
             }
           />
 
@@ -899,6 +887,25 @@ export default function ReceiptPreviewScreen() {
           />
         </Pressable>
       </View>
+
+      {cropImageDimensions && (
+        <ReceiptCropModal
+          visible={cropModalVisible}
+          imageUri={receiptUri}
+          imageWidth={
+            cropImageDimensions.width
+          }
+          imageHeight={
+            cropImageDimensions.height
+          }
+          onCancel={handleCancelCrop}
+          onApply={(region) =>
+            void handleApplyCrop(
+              region,
+            )
+          }
+        />
+      )}
     </View>
   );
 }
