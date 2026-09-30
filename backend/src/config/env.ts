@@ -61,6 +61,12 @@ passwordReset: {
     ),
 },
 
+receiptStorageDirectory:
+  process.env.RECEIPT_STORAGE_DIRECTORY ??
+  (process.env.RAILWAY_VOLUME_MOUNT_PATH
+    ? `${process.env.RAILWAY_VOLUME_MOUNT_PATH}/receipts`
+    : ''),
+
   allowedWorkEmailDomains:
     parseAllowedWorkEmailDomains(),
 
@@ -98,3 +104,4 @@ passwordReset: {
       process.env.COMPANY_WEBHOOK_SECRET ?? '',
   },
 };
+

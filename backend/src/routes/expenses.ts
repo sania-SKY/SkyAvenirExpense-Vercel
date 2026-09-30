@@ -3,6 +3,10 @@ import {
 } from 'express';
 
 import {
+  env,
+} from '../config/env.js';
+
+import {
   randomUUID,
 } from 'node:crypto';
 
@@ -30,11 +34,15 @@ const router =
   Router();
 
 const receiptUploadDirectory =
-  path.resolve(
-    process.cwd(),
-    'uploads',
-    'receipts',
-  );
+  env.receiptStorageDirectory
+    ? path.resolve(
+        env.receiptStorageDirectory,
+      )
+    : path.resolve(
+        process.cwd(),
+        'uploads',
+        'receipts',
+      );
 
 fs.mkdirSync(
   receiptUploadDirectory,

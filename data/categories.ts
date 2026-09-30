@@ -131,3 +131,15 @@ export const categories = [
 
   'Web Development',
 ] as const;
+
+export const frequentlyUsedCategories = [
+  'Travel - Meals and Entertainment (Employee Only)',
+  'Travel - Meals and Entertainment with Attendees',
+  'Travel - Lodging (Hotel)',
+  'Travel - Car Rental/Fuel',
+  'Travel - Parking, Tolls, Taxi, Train',
+  'Fuel',
+  'Airfare',
+  'Computer Software: AI',
+  'Dues & Subscriptions',
+] as const;
