@@ -140,6 +140,5 @@ export const frequentlyUsedCategories = [
   'Travel - Parking, Tolls, Taxi, Train',
   'Fuel',
   'Airfare',
-  'Computer Software: AI',
   'Dues & Subscriptions',
 ] as const;
