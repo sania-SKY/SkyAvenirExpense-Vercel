@@ -24,6 +24,17 @@ export type CreateExpenseInput = {
   receiptStorageKey: string;
 
   attendees: ExpenseAttendeeInput[];
+
+  /*
+   * When true the expense is stored as FAILED
+   * (Needs Review) instead of SUBMITTED, e.g. a
+   * blurry receipt that must be retaken.
+   */
+  receiptNeedsReview?:
+    boolean;
+
+  reviewReason?:
+    string | null;
 };
 
 export type ExpenseRecord = {

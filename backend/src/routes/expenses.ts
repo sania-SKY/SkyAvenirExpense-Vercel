@@ -314,6 +314,14 @@ router.post(
                 .receiptStorageKey,
 
             attendees,
+
+            receiptNeedsReview:
+              parsed.data
+                .receiptNeedsReview,
+
+            reviewReason:
+              parsed.data.reviewReason ||
+              null,
           },
         );
 

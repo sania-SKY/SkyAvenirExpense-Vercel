@@ -30,6 +30,15 @@ import {
     authenticatedFetch,
 } from '../../../services/auth';
 
+import {
+    useReceipt,
+} from '../../context/ReceiptContext';
+
+import {
+    BLURRY_RECEIPT_MESSAGE,
+    isBlurryReceiptError,
+} from '../../utils/blur-detection';
+
 type Expense = {
   id: string;
 
@@ -72,6 +81,10 @@ type Expense = {
 };
 
 export default function ExpenseDetailsScreen() {
+  const {
+    clearReceipt,
+  } = useReceipt();
+
   const params =
     useLocalSearchParams<{
       id?: string;
@@ -101,11 +114,6 @@ export default function ExpenseDetailsScreen() {
   ] = useState<
     string | null
   >(null);
-
-  const [
-    showJson,
-    setShowJson,
-  ] = useState(false);
 
   const [
     receiptUri,
@@ -469,6 +477,17 @@ export default function ExpenseDetailsScreen() {
     );
   }
 
+  const needsBlurRetake =
+    (
+      expense.status ===
+        'FAILED' ||
+      expense.status ===
+        'REJECTED'
+    ) &&
+    isBlurryReceiptError(
+      expense.external_error,
+    );
+
   return (
     <View
       style={
@@ -520,7 +539,7 @@ export default function ExpenseDetailsScreen() {
               styles.headerSubtitle
             }
           >
-            Full submitted record
+            Submitted expense
           </Text>
         </View>
 
@@ -539,6 +558,70 @@ export default function ExpenseDetailsScreen() {
           styles.content
         }
       >
+        {needsBlurRetake && (
+          <View
+            style={
+              styles.blurBanner
+            }
+          >
+            <View
+              style={
+                styles.blurBannerHeader
+              }
+            >
+              <Ionicons
+                name="alert-circle"
+                size={22}
+                color="#A66A00"
+              />
+
+              <Text
+                style={
+                  styles.blurBannerTitle
+                }
+              >
+                Blurry receipt
+              </Text>
+            </View>
+
+            <Text
+              style={
+                styles.blurBannerText
+              }
+            >
+              {expense.external_error ||
+                BLURRY_RECEIPT_MESSAGE}
+            </Text>
+
+            <Pressable
+              onPress={() => {
+                clearReceipt();
+
+                router.replace(
+                  '/expense/capture',
+                );
+              }}
+              style={
+                styles.retakeButton
+              }
+            >
+              <Ionicons
+                name="camera-outline"
+                size={18}
+                color="#FFFFFF"
+              />
+
+              <Text
+                style={
+                  styles.retakeButtonText
+                }
+              >
+                Retake clear photo
+              </Text>
+            </Pressable>
+          </View>
+        )}
+
         {/* RECEIPT */}
 
         <View
@@ -546,41 +629,13 @@ export default function ExpenseDetailsScreen() {
             styles.card
           }
         >
-          <View
+          <Text
             style={
-              styles.cardHeadingRow
+              styles.cardTitle
             }
           >
-            <Text
-              style={
-                styles.cardTitle
-              }
-            >
-              Receipt
-            </Text>
-
-            {receiptUri && (
-              <View
-                style={
-                  styles.receiptAvailableBadge
-                }
-              >
-                <Ionicons
-                  name="checkmark-circle"
-                  size={14}
-                  color="#16845B"
-                />
-
-                <Text
-                  style={
-                    styles.receiptAvailableText
-                  }
-                >
-                  Stored
-                </Text>
-              </View>
-            )}
-          </View>
+            Receipt
+          </Text>
 
           {receiptLoading ? (
             <View
@@ -660,20 +715,6 @@ export default function ExpenseDetailsScreen() {
           </Text>
 
           <InfoRow
-            label="Expense ID"
-            value={
-              expense.id
-            }
-          />
-
-          <InfoRow
-            label="Status"
-            value={
-              expense.status
-            }
-          />
-
-          <InfoRow
             label="Category"
             value={
               expense.category
@@ -700,24 +741,6 @@ export default function ExpenseDetailsScreen() {
             value={
               formatDateTime(
                 expense.submitted_at,
-              )
-            }
-          />
-
-          <InfoRow
-            label="Created At"
-            value={
-              formatDateTime(
-                expense.created_at,
-              )
-            }
-          />
-
-          <InfoRow
-            label="Updated At"
-            value={
-              formatDateTime(
-                expense.updated_at,
               )
             }
           />
@@ -777,140 +800,6 @@ export default function ExpenseDetailsScreen() {
             >
               No attendees
             </Text>
-          )}
-        </View>
-
-        {/* EXTERNAL API */}
-
-        <View
-          style={
-            styles.card
-          }
-        >
-          <Text
-            style={
-              styles.cardTitle
-            }
-          >
-            External Integration
-          </Text>
-
-          <InfoRow
-            label="External Status"
-            value={
-              expense.external_status ||
-              'Not sent yet'
-            }
-          />
-
-          <InfoRow
-            label="External Reference"
-            value={
-              expense.external_reference ||
-              '—'
-            }
-          />
-
-          <InfoRow
-            label="Last Sync"
-            value={
-              expense.last_sync_at
-                ? formatDateTime(
-                    expense.last_sync_at,
-                  )
-                : '—'
-            }
-          />
-
-          <InfoRow
-            label="External Error"
-            value={
-              expense.external_error ||
-              '—'
-            }
-          />
-        </View>
-
-        {/* STORAGE */}
-
-        <View
-          style={
-            styles.card
-          }
-        >
-          <Text
-            style={
-              styles.cardTitle
-            }
-          >
-            Receipt Storage
-          </Text>
-
-          <InfoRow
-            label="Storage Key"
-            value={
-              expense.receipt_storage_key ||
-              '—'
-            }
-          />
-        </View>
-
-        {/* RAW JSON */}
-
-        <View
-          style={
-            styles.card
-          }
-        >
-          <Pressable
-            onPress={() =>
-              setShowJson(
-                (current) =>
-                  !current,
-              )
-            }
-            style={
-              styles.jsonHeader
-            }
-          >
-            <Text
-              style={
-                styles.cardTitle
-              }
-            >
-              Raw JSON
-            </Text>
-
-            <Ionicons
-              name={
-                showJson
-                  ? 'chevron-up'
-                  : 'chevron-down'
-              }
-              size={20}
-              color="#0868AE"
-            />
-          </Pressable>
-
-          {showJson && (
-            <View
-              style={
-                styles.jsonBox
-              }
-            >
-              <Text
-                selectable
-                style={
-                  styles.jsonText
-                }
-              >
-                {JSON.stringify(
-                  expense,
-                  null,
-                  2,
-                )}
-              </Text>
-            </View>
           )}
         </View>
       </ScrollView>
@@ -1203,6 +1092,102 @@ const styles =
 
       paddingBottom:
         45,
+    },
+
+    blurBanner: {
+      marginBottom:
+        14,
+
+      padding:
+        16,
+
+      borderRadius:
+        20,
+
+      backgroundColor:
+        '#FFF4DD',
+
+      borderWidth:
+        1,
+
+      borderColor:
+        'rgba(166,106,0,0.22)',
+    },
+
+    blurBannerHeader: {
+      flexDirection:
+        'row',
+
+      alignItems:
+        'center',
+
+      gap:
+        8,
+    },
+
+    blurBannerTitle: {
+      fontSize:
+        15,
+
+      fontWeight:
+        '700',
+
+      color:
+        '#A66A00',
+    },
+
+    blurBannerText: {
+      marginTop:
+        8,
+
+      fontSize:
+        13,
+
+      lineHeight:
+        19,
+
+      color:
+        '#7A5608',
+    },
+
+    retakeButton: {
+      marginTop:
+        14,
+
+      alignSelf:
+        'flex-start',
+
+      flexDirection:
+        'row',
+
+      alignItems:
+        'center',
+
+      gap:
+        8,
+
+      paddingHorizontal:
+        14,
+
+      paddingVertical:
+        11,
+
+      borderRadius:
+        14,
+
+      backgroundColor:
+        '#0868AE',
+    },
+
+    retakeButtonText: {
+      fontSize:
+        13.5,
+
+      fontWeight:
+        '700',
+
+      color:
+        '#FFFFFF',
     },
 
     card: {

@@ -1,11 +1,11 @@
 import {
-    createContext,
-    useContext,
-    useState,
+  createContext,
+  useContext,
+  useState,
 } from 'react';
 
 import type {
-    PropsWithChildren,
+  PropsWithChildren,
 } from 'react';
 
 export type ReceiptSource =
@@ -15,17 +15,24 @@ export type ReceiptSource =
 export type ReceiptState = {
   uri: string;
   source: ReceiptSource;
+  isBlurry: boolean;
 };
 
 type ReceiptContextValue = {
   receipt: ReceiptState | null;
 
   setReceipt: (
-    receipt: ReceiptState,
+    receipt: Omit<ReceiptState, 'isBlurry'> & {
+      isBlurry?: boolean;
+    },
   ) => void;
 
   updateReceiptUri: (
     uri: string,
+  ) => void;
+
+  setReceiptBlurry: (
+    isBlurry: boolean,
   ) => void;
 
   clearReceipt: () => void;
@@ -45,9 +52,21 @@ export function ReceiptProvider({
     );
 
   function setReceipt(
-    nextReceipt: ReceiptState,
+    nextReceipt: Omit<ReceiptState, 'isBlurry'> & {
+      isBlurry?: boolean;
+    },
   ) {
-    setReceiptState(nextReceipt);
+    setReceiptState({
+      uri:
+        nextReceipt.uri,
+
+      source:
+        nextReceipt.source,
+
+      isBlurry:
+        nextReceipt.isBlurry ??
+        false,
+    });
   }
 
   function updateReceiptUri(
@@ -62,6 +81,30 @@ export function ReceiptProvider({
         return {
           ...currentReceipt,
           uri,
+          /*
+           * Crop / rotate may change sharpness,
+           * so clear the previous result until
+           * preview re-checks the new image.
+           */
+          isBlurry:
+            false,
+        };
+      },
+    );
+  }
+
+  function setReceiptBlurry(
+    isBlurry: boolean,
+  ) {
+    setReceiptState(
+      (currentReceipt) => {
+        if (!currentReceipt) {
+          return null;
+        }
+
+        return {
+          ...currentReceipt,
+          isBlurry,
         };
       },
     );
@@ -77,6 +120,7 @@ export function ReceiptProvider({
         receipt,
         setReceipt,
         updateReceiptUri,
+        setReceiptBlurry,
         clearReceipt,
       }}
     >

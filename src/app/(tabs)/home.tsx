@@ -3,6 +3,7 @@ import {
 } from '@expo/vector-icons';
 
 import {
+  Link,
   router,
   useFocusEffect,
 } from 'expo-router';
@@ -88,7 +89,7 @@ type Expense = {
 
 type HomeStatus =
   | 'Submitted'
-  | 'Processing'
+  | 'Processed'
   | 'Needs Review';
 
 export default function HomeScreen() {
@@ -538,8 +539,8 @@ export default function HomeScreen() {
             value={
               processing
             }
-            label="Processing"
-            status="Processing"
+            label="Processed"
+            status="Processed"
             icon="time-outline"
           />
 
@@ -550,6 +551,11 @@ export default function HomeScreen() {
             label="Needs Review"
             status="Needs Review"
             icon="alert-circle-outline"
+            onPress={() =>
+              router.push(
+                '/(tabs)/expenses?filter=needs-review',
+              )
+            }
           />
         </View>
 
@@ -823,6 +829,9 @@ type StatusCardProps = {
 
   icon:
     keyof typeof Ionicons.glyphMap;
+
+  onPress?:
+    () => void;
 };
 
 function StatusCard({
@@ -830,25 +839,34 @@ function StatusCard({
   label,
   status,
   icon,
+  onPress,
 }: StatusCardProps) {
   const theme =
     status ===
     'Submitted'
       ? {
+          /*
+           * Submitted uses the previous
+           * Processing yellow palette.
+           */
           background:
-            '#E8F7EF',
+            '#FFF4DD',
 
           foreground:
-            '#17875D',
+            '#A66A00',
         }
       : status ===
-          'Processing'
+          'Processed'
         ? {
+            /*
+             * Processed uses the previous
+             * Submitted green palette.
+             */
             background:
-              '#FFF4DD',
+              '#E8F7EF',
 
             foreground:
-              '#A66A00',
+              '#17875D',
           }
         : {
             background:
@@ -857,6 +875,73 @@ function StatusCard({
             foreground:
               '#B23B34',
           };
+
+  const content =
+    (
+      <>
+        <Ionicons
+          name={
+            icon
+          }
+          size={
+            18
+          }
+          color={
+            theme.foreground
+          }
+        />
+
+        <Text
+          style={[
+            styles.statusValue,
+
+            {
+              color:
+                theme.foreground,
+            },
+          ]}
+        >
+          {value}
+        </Text>
+
+        <Text
+          style={
+            styles.statusLabel
+          }
+        >
+          {label}
+        </Text>
+      </>
+    );
+
+  if (onPress) {
+    return (
+      <Pressable
+        onPress={
+          onPress
+        }
+        accessibilityRole="button"
+        accessibilityLabel={`View ${label} expenses`}
+        style={({
+          pressed,
+        }) => [
+          styles.statusCard,
+
+          {
+            backgroundColor:
+              theme.background,
+
+            opacity:
+              pressed
+                ? 0.85
+                : 1,
+          },
+        ]}
+      >
+        {content}
+      </Pressable>
+    );
+  }
 
   return (
     <View
@@ -869,38 +954,7 @@ function StatusCard({
         },
       ]}
     >
-      <Ionicons
-        name={
-          icon
-        }
-        size={
-          18
-        }
-        color={
-          theme.foreground
-        }
-      />
-
-      <Text
-        style={[
-          styles.statusValue,
-
-          {
-            color:
-              theme.foreground,
-          },
-        ]}
-      >
-        {value}
-      </Text>
-
-      <Text
-        style={
-          styles.statusLabel
-        }
-      >
-        {label}
-      </Text>
+      {content}
     </View>
   );
 }
@@ -958,105 +1012,125 @@ function ExpenseRow({
           };
 
   return (
-    <Pressable
-      style={[
-        styles.expenseRow,
+    <Link
+      href={{
+        pathname:
+          '/expense/[id]',
 
-        !last &&
-          styles.expenseDivider,
-      ]}
+        params: {
+          id:
+            expense.id,
+        },
+      }}
+      asChild
     >
-      <View
-        style={
-          styles.expenseIcon
-        }
-      >
-        <Ionicons
-          name={
-            getCategoryIcon(
-              expense.category,
-            )
-          }
-          size={
-            22
-          }
-          color="#0868AE"
-        />
-      </View>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Open ${expense.category} expense`}
+        style={({
+          pressed,
+        }) => [
+          styles.expenseRow,
 
-      <View
-        style={
-          styles.expenseInfo
-        }
-      >
-        <Text
-          numberOfLines={
-            1
-          }
-          style={
-            styles.expenseCategory
-          }
-        >
-          {expense.category}
-        </Text>
+          !last &&
+            styles.expenseDivider,
 
-        <Text
-          numberOfLines={
-            1
-          }
-          style={
-            styles.expensePurpose
-          }
-        >
-          {
-            expense.business_purpose
-          }
-        </Text>
-
-        <Text
-          style={
-            styles.expenseDate
-          }
-        >
-          {
-            formatExpenseDate(
-              expense.submitted_at ??
-                expense.created_at,
-            )
-          }
-        </Text>
-      </View>
-
-      <View
-        style={
-          styles.expenseRight
-        }
+          pressed &&
+            styles.expenseRowPressed,
+        ]}
       >
         <View
-          style={[
-            styles.statusChip,
+          style={
+            styles.expenseIcon
+          }
+        >
+          <Ionicons
+            name={
+              getCategoryIcon(
+                expense.category,
+              )
+            }
+            size={
+              22
+            }
+            color="#0868AE"
+          />
+        </View>
 
-            {
-              backgroundColor:
-                statusTheme.background,
-            },
-          ]}
+        <View
+          style={
+            styles.expenseInfo
+          }
         >
           <Text
+            numberOfLines={
+              1
+            }
+            style={
+              styles.expenseCategory
+            }
+          >
+            {expense.category}
+          </Text>
+
+          <Text
+            numberOfLines={
+              1
+            }
+            style={
+              styles.expensePurpose
+            }
+          >
+            {
+              expense.business_purpose
+            }
+          </Text>
+
+          <Text
+            style={
+              styles.expenseDate
+            }
+          >
+            {
+              formatExpenseDate(
+                expense.submitted_at ??
+                  expense.created_at,
+              )
+            }
+          </Text>
+        </View>
+
+        <View
+          style={
+            styles.expenseRight
+          }
+        >
+          <View
             style={[
-              styles.statusChipText,
+              styles.statusChip,
 
               {
-                color:
-                  statusTheme.foreground,
+                backgroundColor:
+                  statusTheme.background,
               },
             ]}
           >
-            {displayStatus}
-          </Text>
+            <Text
+              style={[
+                styles.statusChipText,
+
+                {
+                  color:
+                    statusTheme.foreground,
+                },
+              ]}
+            >
+              {displayStatus}
+            </Text>
+          </View>
         </View>
-      </View>
-    </Pressable>
+      </Pressable>
+    </Link>
   );
 }
 
@@ -1935,6 +2009,11 @@ const styles =
 
       alignItems:
         'center',
+    },
+
+    expenseRowPressed: {
+      backgroundColor:
+        '#F3F8FC',
     },
 
     expenseDivider: {

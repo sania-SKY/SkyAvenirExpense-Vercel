@@ -58,13 +58,6 @@ const AuthContext =
     AuthContextValue | undefined
   >(undefined);
 
-/*
- * Keeps the brand splash on screen for a moment so
- * a fast restore does not flash past the user.
- */
-const MIN_SPLASH_TIME_MS =
-  1200;
-
 export function AuthProvider({
   children,
 }: PropsWithChildren) {
@@ -96,9 +89,6 @@ export function AuthProvider({
       true;
 
     async function restore() {
-      const startedAt =
-        Date.now();
-
       let restoredUser:
         AuthUser | null =
         null;
@@ -114,25 +104,6 @@ export function AuthProvider({
 
         restoredUser =
           null;
-      }
-
-      const remaining =
-        MIN_SPLASH_TIME_MS -
-        (Date.now() -
-          startedAt);
-
-      if (
-        remaining >
-        0
-      ) {
-        await new Promise<void>(
-          (resolve) => {
-            setTimeout(
-              resolve,
-              remaining,
-            );
-          },
-        );
       }
 
       if (!active) {

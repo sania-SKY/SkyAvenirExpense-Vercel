@@ -2,8 +2,8 @@ import { useEffect } from 'react';
 
 import { Stack, router, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { View } from 'react-native';
 
-import { AppSplash } from '../components/app-splash';
 import { AuthProvider, useAuth } from '../context/AuthContext';
 import { ReceiptProvider } from '../context/ReceiptContext';
 
@@ -44,7 +44,14 @@ function RootNavigator() {
   }, [status, segments]);
 
   if (status === 'restoring') {
-    return <AppSplash />;
+    return (
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: '#062B4A',
+        }}
+      />
+    );
   }
 
   return (

@@ -80,6 +80,24 @@ export const createExpenseSchema =
         )
         .optional()
         .default([]),
+
+    receiptNeedsReview:
+      z
+        .boolean()
+        .optional()
+        .default(
+          false,
+        ),
+
+    reviewReason:
+      z
+        .string()
+        .trim()
+        .max(
+          500,
+        )
+        .optional()
+        .nullable(),
   });
 
 export type CreateExpenseRequest =

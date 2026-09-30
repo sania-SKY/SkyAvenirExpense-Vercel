@@ -43,6 +43,19 @@ export async function createExpense(
         authenticatedUser,
       );
 
+    const needsReview =
+      Boolean(
+        input.receiptNeedsReview,
+      );
+
+    const reviewReason =
+      needsReview
+        ? (
+            input.reviewReason?.trim() ||
+            'This image is blurry. Please retake a clear photo of this receipt.'
+          )
+        : null;
+
     const expenseResult =
       await client.query(
         `
@@ -52,7 +65,9 @@ export async function createExpense(
             business_purpose,
             comments,
             receipt_storage_key,
-            status
+            status,
+            external_status,
+            external_error
           )
           VALUES (
             $1,
@@ -60,7 +75,9 @@ export async function createExpense(
             $3,
             $4,
             $5,
-            'SUBMITTED'
+            $6,
+            $7,
+            $8
           )
           RETURNING
             id,
@@ -84,6 +101,13 @@ export async function createExpense(
           input.businessPurpose,
           input.comments,
           input.receiptStorageKey,
+          needsReview
+            ? 'FAILED'
+            : 'SUBMITTED',
+          needsReview
+            ? 'NEEDS_REVIEW'
+            : null,
+          reviewReason,
         ],
       );
 
@@ -139,26 +163,30 @@ export async function createExpense(
     }
 
     /*
-     * Queue external integration.
+     * Queue external integration only for
+     * clean submissions. Blurry / Needs Review
+     * receipts stay local until the employee
+     * retakes a clear image.
      */
-
-    await client.query(
-      `
-        INSERT INTO integration_jobs (
-          expense_id,
-          status
-        )
-        VALUES (
-          $1,
-          'PENDING'
-        )
-        ON CONFLICT (expense_id)
-        DO NOTHING
-      `,
-      [
-        expense.id,
-      ],
-    );
+    if (!needsReview) {
+      await client.query(
+        `
+          INSERT INTO integration_jobs (
+            expense_id,
+            status
+          )
+          VALUES (
+            $1,
+            'PENDING'
+          )
+          ON CONFLICT (expense_id)
+          DO NOTHING
+        `,
+        [
+          expense.id,
+        ],
+      );
+    }
 
     await client.query(
       'COMMIT',

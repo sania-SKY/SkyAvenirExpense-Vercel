@@ -10,6 +10,7 @@ import {
 import {
   router,
   useFocusEffect,
+  useLocalSearchParams,
 } from 'expo-router';
 
 import {
@@ -78,6 +79,16 @@ type Expense = {
 export default function ExpensesScreen() {
   const user =
     getCurrentUser();
+
+  const params =
+    useLocalSearchParams<{
+      filter?:
+        string;
+    }>();
+
+  const needsReviewOnly =
+    params.filter ===
+    'needs-review';
 
   const [
     expenses,
@@ -194,6 +205,17 @@ export default function ExpensesScreen() {
     ),
   );
 
+  const visibleExpenses =
+    needsReviewOnly
+      ? expenses.filter(
+          (expense) =>
+            expense.status ===
+              'REJECTED' ||
+            expense.status ===
+              'FAILED',
+        )
+      : expenses;
+
   return (
     <View
       style={
@@ -234,7 +256,9 @@ export default function ExpensesScreen() {
               styles.title
             }
           >
-            My Expenses
+            {needsReviewOnly
+              ? 'Needs Review'
+              : 'My Expenses'}
           </Text>
 
           <Text
@@ -243,9 +267,11 @@ export default function ExpensesScreen() {
             }
             numberOfLines={1}
           >
-            {user?.name
-              ? `${user.name}'s expense records`
-              : 'Your expense records'}
+            {needsReviewOnly
+              ? 'Receipts that need a clearer photo'
+              : user?.name
+                ? `${user.name}'s expense records`
+                : 'Your expense records'}
           </Text>
         </View>
 
@@ -333,7 +359,7 @@ export default function ExpensesScreen() {
             </Text>
           </Pressable>
         </View>
-      ) : expenses.length ===
+      ) : visibleExpenses.length ===
         0 ? (
         <View
           style={
@@ -357,7 +383,9 @@ export default function ExpensesScreen() {
               styles.emptyTitle
             }
           >
-            No expenses yet
+            {needsReviewOnly
+              ? 'Nothing needs review'
+              : 'No expenses yet'}
           </Text>
 
           <Text
@@ -365,10 +393,9 @@ export default function ExpensesScreen() {
               styles.emptyText
             }
           >
-            Capture and submit a
-            receipt. It will appear
-            here after the backend
-            saves it.
+            {needsReviewOnly
+              ? 'Blurry receipts that need a clearer photo will show up here.'
+              : 'Capture and submit a receipt. It will appear here after the backend saves it.'}
           </Text>
 
           <Pressable
@@ -450,7 +477,7 @@ export default function ExpensesScreen() {
             </View>
           </View>
 
-          {expenses.map(
+          {visibleExpenses.map(
             (expense) => (
               <ExpenseCard
                 key={

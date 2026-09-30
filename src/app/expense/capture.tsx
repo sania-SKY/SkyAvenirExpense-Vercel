@@ -1,4 +1,8 @@
-import { useRef, useState } from 'react';
+import {
+  useCallback,
+  useRef,
+  useState,
+} from 'react';
 
 import {
   CameraType,
@@ -10,12 +14,16 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import {
+  router,
+  useFocusEffect,
+} from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 
 import {
   ActivityIndicator,
   Alert,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -23,6 +31,73 @@ import {
 } from 'react-native';
 
 import { useReceipt } from '../../context/ReceiptContext';
+
+/*
+ * ------------------------------------------------
+ * RELEASE WEB CAMERA
+ * ------------------------------------------------
+ *
+ * On iOS Safari / Home Screen web apps, the green
+ * privacy dot and Dynamic Island camera icon stay
+ * on until every MediaStreamTrack is stopped.
+ * Unmounting CameraView usually does this, but we
+ * also stop any leftover video streams explicitly
+ * so the indicator clears as soon as we leave
+ * capture.
+ * ------------------------------------------------
+ */
+function releaseWebCameraStreams() {
+  if (
+    Platform.OS !==
+    'web'
+  ) {
+    return;
+  }
+
+  if (
+    typeof document ===
+    'undefined'
+  ) {
+    return;
+  }
+
+  const videos =
+    document.querySelectorAll(
+      'video',
+    );
+
+  videos.forEach(
+    (
+      video,
+    ) => {
+      const stream =
+        (
+          video as HTMLVideoElement
+        )
+          .srcObject;
+
+      if (
+        stream instanceof
+        MediaStream
+      ) {
+        stream
+          .getTracks()
+          .forEach(
+            (
+              track,
+            ) => {
+              track.stop();
+            },
+          );
+
+        (
+          video as HTMLVideoElement
+        ).srcObject =
+          null;
+      }
+    },
+  );
+}
 
 export default function CaptureReceiptScreen() {
   const cameraRef = useRef<CameraView | null>(null);
@@ -42,6 +117,71 @@ export default function CaptureReceiptScreen() {
 
   const [cameraReady, setCameraReady] =
     useState(false);
+
+  /*
+   * When false, CameraView is not rendered, which
+   * triggers expo-camera's web cleanup and turns
+   * off the device camera light / privacy indicator.
+   */
+  const [cameraActive, setCameraActive] =
+    useState(true);
+
+  useFocusEffect(
+    useCallback(
+      () => {
+        setCameraActive(
+          true,
+        );
+
+        return () => {
+          setCameraActive(
+            false,
+          );
+
+          setCameraReady(
+            false,
+          );
+
+          releaseWebCameraStreams();
+        };
+      },
+      [],
+    ),
+  );
+
+  async function leaveCaptureForPreview() {
+    setCameraActive(
+      false,
+    );
+
+    setCameraReady(
+      false,
+    );
+
+    releaseWebCameraStreams();
+
+    /*
+     * Let React unmount CameraView before we
+     * navigate, so the stream stops immediately.
+     * replace (not push) removes this screen from
+     * the stack so it cannot keep the camera open
+     * underneath preview.
+     */
+    await new Promise<void>(
+      (
+        resolve,
+      ) => {
+        setTimeout(
+          resolve,
+          0,
+        );
+      },
+    );
+
+    router.replace(
+      '/expense/preview',
+    );
+  }
 
   if (!permission) {
     return (
@@ -127,7 +267,7 @@ export default function CaptureReceiptScreen() {
         source: 'camera',
       });
 
-      router.push('/expense/preview');
+      await leaveCaptureForPreview();
     } catch (error) {
       console.error(
         'Receipt capture error:',
@@ -168,7 +308,7 @@ export default function CaptureReceiptScreen() {
         source: 'gallery',
       });
 
-      router.push('/expense/preview');
+      await leaveCaptureForPreview();
     } catch (error) {
       console.error(
         'Gallery selection error:',
@@ -204,22 +344,43 @@ export default function CaptureReceiptScreen() {
   style="light"
 />
 
-      <CameraView
-        ref={cameraRef}
-        style={StyleSheet.absoluteFill}
-        facing={facing}
-        flash={flash}
-        onCameraReady={() =>
-          setCameraReady(true)
-        }
-      />
+      {cameraActive ? (
+        <CameraView
+          ref={cameraRef}
+          style={StyleSheet.absoluteFill}
+          facing={facing}
+          flash={flash}
+          onCameraReady={() =>
+            setCameraReady(true)
+          }
+        />
+      ) : (
+        <View
+          style={[
+            StyleSheet.absoluteFill,
+            styles.cameraOff,
+          ]}
+        />
+      )}
 
       <View style={styles.darkOverlayTop} />
       <View style={styles.darkOverlayBottom} />
 
       <View style={styles.header}>
         <Pressable
-          onPress={() => router.back()}
+          onPress={() => {
+            setCameraActive(
+              false,
+            );
+
+            setCameraReady(
+              false,
+            );
+
+            releaseWebCameraStreams();
+
+            router.back();
+          }}
           style={styles.headerButton}
         >
           <Ionicons
@@ -354,6 +515,9 @@ export default function CaptureReceiptScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#000000',
+  },
+  cameraOff: {
     backgroundColor: '#000000',
   },
   loadingScreen: {

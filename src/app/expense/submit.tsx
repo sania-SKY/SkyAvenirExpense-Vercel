@@ -50,6 +50,10 @@ import {
   getAccessToken,
 } from '../../../services/auth';
 
+import {
+  BLURRY_RECEIPT_MESSAGE,
+} from '../../utils/blur-detection';
+
 type SelectorType =
   | 'category'
   | 'purpose'
@@ -109,6 +113,10 @@ export default function SubmitExpenseScreen() {
     receipt,
     clearReceipt,
   } = useReceipt();
+
+  const receiptNeedsReview =
+    receipt?.isBlurry ===
+    true;
 
   const [
     category,
@@ -629,6 +637,13 @@ if (
 
                 attendees:
                   cleanedAttendees,
+
+                receiptNeedsReview,
+
+                reviewReason:
+                  receiptNeedsReview
+                    ? BLURRY_RECEIPT_MESSAGE
+                    : null,
               }),
           },
         );

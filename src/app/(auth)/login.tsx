@@ -540,48 +540,6 @@ export default function LoginScreen() {
 
                 <View
                   style={
-                    styles.infoCard
-                  }
-                >
-                  <View
-                    style={
-                      styles.infoIcon
-                    }
-                  >
-                    <Ionicons
-                      name="shield-checkmark"
-                      size={21}
-                      color="#0868AE"
-                    />
-                  </View>
-
-                  <View
-                    style={
-                      styles.infoContent
-                    }
-                  >
-                    <Text
-                      style={
-                        styles.infoTitle
-                      }
-                    >
-                      Secure company access
-                    </Text>
-
-                    <Text
-                      style={
-                        styles.infoSubtitle
-                      }
-                    >
-                      Sign in using your approved
-                      {' '}
-                      Sky Avenir employee account.
-                    </Text>
-                  </View>
-                </View>
-
-                <View
-                  style={
                     styles.accountActions
                   }
                 >
@@ -630,26 +588,6 @@ export default function LoginScreen() {
                       </Text>
                     </Text>
                   </Pressable>
-                </View>
-
-                <View
-                  style={
-                    styles.footer
-                  }
-                >
-                  <Text
-                    style={
-                      styles.footerText
-                    }
-                  >
-                    PEOPLE  |  PROGRESS  |  A HIGHER TOMORROW
-                  </Text>
-
-                  <View
-                    style={
-                      styles.footerLine
-                    }
-                  />
                 </View>
               </ScrollView>
             </KeyboardAvoidingView>
@@ -1013,82 +951,6 @@ const styles =
         '#B42318',
     },
 
-    infoCard: {
-      marginTop:
-        14,
-
-      paddingHorizontal:
-        14,
-
-      paddingVertical:
-        11,
-
-      flexDirection:
-        'row',
-
-      alignItems:
-        'center',
-
-      borderRadius:
-        17,
-
-      backgroundColor:
-        'rgba(232,244,251,0.90)',
-    },
-
-    infoIcon: {
-      width:
-        40,
-
-      height:
-        40,
-
-      borderRadius:
-        14,
-
-      alignItems:
-        'center',
-
-      justifyContent:
-        'center',
-
-      backgroundColor:
-        'rgba(215,235,247,0.96)',
-    },
-
-    infoContent: {
-      flex:
-        1,
-
-      marginLeft:
-        11,
-    },
-
-    infoTitle: {
-      fontSize:
-        12.5,
-
-      fontWeight:
-        '700',
-
-      color:
-        '#174966',
-    },
-
-    infoSubtitle: {
-      marginTop:
-        2,
-
-      fontSize:
-        10.2,
-
-      lineHeight:
-        14,
-
-      color:
-        '#648196',
-    },
-
     accountActions: {
       marginTop:
         14,
@@ -1125,50 +987,5 @@ const styles =
 
       color:
         '#0868AE',
-    },
-
-    footer: {
-      marginTop:
-        22,
-
-      paddingBottom:
-        4,
-
-      alignItems:
-        'center',
-    },
-
-    footerText: {
-      textAlign:
-        'center',
-
-      fontSize:
-        7.2,
-
-      fontWeight:
-        '600',
-
-      letterSpacing:
-        1.45,
-
-      color:
-        '#315A7D',
-    },
-
-    footerLine: {
-      width:
-        42,
-
-      height:
-        2,
-
-      marginTop:
-        9,
-
-      borderRadius:
-        10,
-
-      backgroundColor:
-        '#DCA52E',
     },
   });
