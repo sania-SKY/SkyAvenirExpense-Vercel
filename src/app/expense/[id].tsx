@@ -1,74 +1,47 @@
 import {
-    useCallback,
-    useEffect,
-    useState,
+  useCallback,
+  useEffect,
+  useState,
 } from 'react';
 
-import {
-    Ionicons,
-} from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 
 import {
-    router,
-    useFocusEffect,
-    useLocalSearchParams,
+  router,
+  useFocusEffect,
+  useLocalSearchParams,
 } from 'expo-router';
 
 import {
-    ActivityIndicator,
-    Image,
-    Platform,
-    Pressable,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    View,
+  ActivityIndicator,
+  Image,
+  Pressable,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  View,
 } from 'react-native';
 
 import {
-    authenticatedFetch,
+  authenticatedFetch,
 } from '../../../services/auth';
 
 type Expense = {
   id: string;
-
   category: string;
-
   business_purpose: string;
-
-  comments:
-    string | null;
-
-  receipt_storage_key:
-    string | null;
-
-  status:
-    string;
-
-  external_reference:
-    string | null;
-
-  external_status:
-    string | null;
-
-  external_error:
-    string | null;
-
-  last_sync_at:
-    string | null;
-
-  submitted_at:
-    string;
-
-  created_at:
-    string;
-
-  updated_at:
-    string;
-
-  attendees:
-    string[];
+  comments: string | null;
+  receipt_storage_key: string | null;
+  status: string;
+  external_reference: string | null;
+  external_status: string | null;
+  external_error: string | null;
+  last_sync_at: string | null;
+  submitted_at: string;
+  created_at: string;
+  updated_at: string;
+  attendees: string[];
 };
 
 export default function ExpenseDetailsScreen() {
@@ -78,17 +51,14 @@ export default function ExpenseDetailsScreen() {
     }>();
 
   const expenseId =
-    typeof params.id ===
-    'string'
+    typeof params.id === 'string'
       ? params.id
       : '';
 
   const [
     expense,
     setExpense,
-  ] = useState<Expense | null>(
-    null,
-  );
+  ] = useState<Expense | null>(null);
 
   const [
     loading,
@@ -98,21 +68,12 @@ export default function ExpenseDetailsScreen() {
   const [
     error,
     setError,
-  ] = useState<
-    string | null
-  >(null);
-
-  const [
-    showJson,
-    setShowJson,
-  ] = useState(false);
+  ] = useState<string | null>(null);
 
   const [
     receiptUri,
     setReceiptUri,
-  ] = useState<
-    string | null
-  >(null);
+  ] = useState<string | null>(null);
 
   const [
     receiptLoading,
@@ -122,15 +83,7 @@ export default function ExpenseDetailsScreen() {
   const [
     receiptError,
     setReceiptError,
-  ] = useState<
-    string | null
-  >(null);
-
-  /*
-   * ------------------------------------------------
-   * LOAD EXPENSE JSON
-   * ------------------------------------------------
-   */
+  ] = useState<string | null>(null);
 
   const loadExpense =
     useCallback(
@@ -140,21 +93,13 @@ export default function ExpenseDetailsScreen() {
             'Expense ID is missing.',
           );
 
-          setLoading(
-            false,
-          );
-
+          setLoading(false);
           return;
         }
 
         try {
-          setLoading(
-            true,
-          );
-
-          setError(
-            null,
-          );
+          setLoading(true);
+          setError(null);
 
           const response =
             await authenticatedFetch(
@@ -186,14 +131,10 @@ export default function ExpenseDetailsScreen() {
               : 'Unable to load expense.',
           );
         } finally {
-          setLoading(
-            false,
-          );
+          setLoading(false);
         }
       },
-      [
-        expenseId,
-      ],
+      [expenseId],
     );
 
   useFocusEffect(
@@ -201,31 +142,9 @@ export default function ExpenseDetailsScreen() {
       () => {
         void loadExpense();
       },
-      [
-        loadExpense,
-      ],
+      [loadExpense],
     ),
   );
-
-  /*
-   * ------------------------------------------------
-   * LOAD PROTECTED RECEIPT
-   * ------------------------------------------------
-   *
-   * Instead of asking <Image> itself to perform
-   * authenticated HTTP, we fetch through our
-   * authenticated API helper first.
-   *
-   * Response:
-   * backend receipt bytes
-   *      ↓
-   * Blob
-   *      ↓
-   * Data URL
-   *      ↓
-   * React Native Image
-   * ------------------------------------------------
-   */
 
   useEffect(
     () => {
@@ -234,18 +153,10 @@ export default function ExpenseDetailsScreen() {
         !expense.id ||
         !expense.receipt_storage_key
       ) {
-        setReceiptUri(
-          null,
-        );
-
+        setReceiptUri(null);
         return;
       }
 
-      /*
-       * Old development records stored a phone
-       * file:/// URI. The backend cannot retrieve
-       * those old phone-local files.
-       */
       if (
         expense.receipt_storage_key.startsWith(
           'file:',
@@ -254,9 +165,7 @@ export default function ExpenseDetailsScreen() {
           '://',
         )
       ) {
-        setReceiptUri(
-          null,
-        );
+        setReceiptUri(null);
 
         setReceiptError(
           'This receipt was created before server receipt storage was enabled.',
@@ -265,22 +174,13 @@ export default function ExpenseDetailsScreen() {
         return;
       }
 
-      let cancelled =
-        false;
+      let cancelled = false;
 
       async function loadReceipt() {
         try {
-          setReceiptLoading(
-            true,
-          );
-
-          setReceiptError(
-            null,
-          );
-
-          setReceiptUri(
-            null,
-          );
+          setReceiptLoading(true);
+          setReceiptError(null);
+          setReceiptUri(null);
 
           console.log(
             '[Receipt Detail] Fetching receipt:',
@@ -311,9 +211,7 @@ export default function ExpenseDetailsScreen() {
               // Receipt error response was not JSON.
             }
 
-            throw new Error(
-              message,
-            );
+            throw new Error(message);
           }
 
           const blob =
@@ -349,9 +247,7 @@ export default function ExpenseDetailsScreen() {
           );
 
           if (!cancelled) {
-            setReceiptUri(
-              null,
-            );
+            setReceiptUri(null);
 
             setReceiptError(
               error instanceof Error
@@ -361,9 +257,7 @@ export default function ExpenseDetailsScreen() {
           }
         } finally {
           if (!cancelled) {
-            setReceiptLoading(
-              false,
-            );
+            setReceiptLoading(false);
           }
         }
       }
@@ -371,8 +265,7 @@ export default function ExpenseDetailsScreen() {
       void loadReceipt();
 
       return () => {
-        cancelled =
-          true;
+        cancelled = true;
       };
     },
     [
@@ -381,70 +274,38 @@ export default function ExpenseDetailsScreen() {
     ],
   );
 
-  /*
-   * ------------------------------------------------
-   * LOADING
-   * ------------------------------------------------
-   */
-
   if (loading) {
     return (
-      <View
-        style={
-          styles.center
-        }
-      >
+      <View style={styles.center}>
         <ActivityIndicator
           size="large"
           color="#0868AE"
         />
 
-        <Text
-          style={
-            styles.loadingText
-          }
-        >
+        <Text style={styles.loadingText}>
           Loading expense...
         </Text>
       </View>
     );
   }
 
-  /*
-   * ------------------------------------------------
-   * EXPENSE ERROR
-   * ------------------------------------------------
-   */
-
   if (
     error ||
     !expense
   ) {
     return (
-      <View
-        style={
-          styles.center
-        }
-      >
+      <View style={styles.center}>
         <Ionicons
           name="alert-circle-outline"
           size={44}
           color="#B23B34"
         />
 
-        <Text
-          style={
-            styles.errorTitle
-          }
-        >
+        <Text style={styles.errorTitle}>
           Expense unavailable
         </Text>
 
-        <Text
-          style={
-            styles.errorText
-          }
-        >
+        <Text style={styles.errorText}>
           {error ??
             'Expense not found.'}
         </Text>
@@ -453,15 +314,9 @@ export default function ExpenseDetailsScreen() {
           onPress={() =>
             router.back()
           }
-          style={
-            styles.backButton
-          }
+          style={styles.backButton}
         >
-          <Text
-            style={
-              styles.backButtonText
-            }
-          >
+          <Text style={styles.backButtonText}>
             Go Back
           </Text>
         </Pressable>
@@ -470,30 +325,18 @@ export default function ExpenseDetailsScreen() {
   }
 
   return (
-    <View
-      style={
-        styles.container
-      }
-    >
+    <View style={styles.container}>
       <StatusBar
         barStyle="dark-content"
         backgroundColor="#FFFFFF"
       />
 
-      {/* HEADER */}
-
-      <View
-        style={
-          styles.header
-        }
-      >
+      <View style={styles.header}>
         <Pressable
           onPress={() =>
             router.back()
           }
-          style={
-            styles.headerButton
-          }
+          style={styles.headerButton}
         >
           <Ionicons
             name="chevron-back"
@@ -502,60 +345,28 @@ export default function ExpenseDetailsScreen() {
           />
         </Pressable>
 
-        <View
-          style={
-            styles.headerText
-          }
-        >
-          <Text
-            style={
-              styles.headerTitle
-            }
-          >
+        <View style={styles.headerText}>
+          <Text style={styles.headerTitle}>
             Expense Details
           </Text>
 
-          <Text
-            style={
-              styles.headerSubtitle
-            }
-          >
-            Full submitted record
+          <Text style={styles.headerSubtitle}>
+            Submitted expense
           </Text>
         </View>
 
-        <View
-          style={
-            styles.headerSpacer
-          }
-        />
+        <View style={styles.headerSpacer} />
       </View>
 
       <ScrollView
-        showsVerticalScrollIndicator={
-          false
-        }
-        contentContainerStyle={
-          styles.content
-        }
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.content}
       >
         {/* RECEIPT */}
 
-        <View
-          style={
-            styles.card
-          }
-        >
-          <View
-            style={
-              styles.cardHeadingRow
-            }
-          >
-            <Text
-              style={
-                styles.cardTitle
-              }
-            >
+        <View style={styles.card}>
+          <View style={styles.cardHeadingRow}>
+            <Text style={styles.cardTitle}>
               Receipt
             </Text>
 
@@ -604,8 +415,7 @@ export default function ExpenseDetailsScreen() {
           ) : receiptUri ? (
             <Image
               source={{
-                uri:
-                  receiptUri,
+                uri: receiptUri,
               }}
               style={
                 styles.receiptImage
@@ -644,34 +454,12 @@ export default function ExpenseDetailsScreen() {
           )}
         </View>
 
-        {/* EXPENSE INFO */}
+        {/* EXPENSE INFORMATION */}
 
-        <View
-          style={
-            styles.card
-          }
-        >
-          <Text
-            style={
-              styles.cardTitle
-            }
-          >
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>
             Expense Information
           </Text>
-
-          <InfoRow
-            label="Expense ID"
-            value={
-              expense.id
-            }
-          />
-
-          <InfoRow
-            label="Status"
-            value={
-              expense.status
-            }
-          />
 
           <InfoRow
             label="Category"
@@ -687,13 +475,14 @@ export default function ExpenseDetailsScreen() {
             }
           />
 
-          <InfoRow
-            label="Comments"
-            value={
-              expense.comments ||
-              '—'
-            }
-          />
+          {expense.comments?.trim() ? (
+            <InfoRow
+              label="Comments"
+              value={
+                expense.comments
+              }
+            />
+          ) : null}
 
           <InfoRow
             label="Submitted At"
@@ -703,52 +492,24 @@ export default function ExpenseDetailsScreen() {
               )
             }
           />
-
-          <InfoRow
-            label="Created At"
-            value={
-              formatDateTime(
-                expense.created_at,
-              )
-            }
-          />
-
-          <InfoRow
-            label="Updated At"
-            value={
-              formatDateTime(
-                expense.updated_at,
-              )
-            }
-          />
         </View>
 
-        {/* ATTENDEES */}
+        {/* ATTENDEES — ONLY IF PRESENT */}
 
-        <View
-          style={
-            styles.card
-          }
-        >
-          <Text
-            style={
-              styles.cardTitle
-            }
-          >
-            Attendees
-          </Text>
+        {expense.attendees?.length >
+          0 && (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>
+              Attendees
+            </Text>
 
-          {expense.attendees
-            ?.length ? (
-            expense.attendees.map(
+            {expense.attendees.map(
               (
                 attendee,
                 index,
               ) => (
                 <View
-                  key={
-                    `${attendee}-${index}`
-                  }
+                  key={`${attendee}-${index}`}
                   style={
                     styles.attendee
                   }
@@ -768,161 +529,13 @@ export default function ExpenseDetailsScreen() {
                   </Text>
                 </View>
               ),
-            )
-          ) : (
-            <Text
-              style={
-                styles.muted
-              }
-            >
-              No attendees
-            </Text>
-          )}
-        </View>
-
-        {/* EXTERNAL API */}
-
-        <View
-          style={
-            styles.card
-          }
-        >
-          <Text
-            style={
-              styles.cardTitle
-            }
-          >
-            External Integration
-          </Text>
-
-          <InfoRow
-            label="External Status"
-            value={
-              expense.external_status ||
-              'Not sent yet'
-            }
-          />
-
-          <InfoRow
-            label="External Reference"
-            value={
-              expense.external_reference ||
-              '—'
-            }
-          />
-
-          <InfoRow
-            label="Last Sync"
-            value={
-              expense.last_sync_at
-                ? formatDateTime(
-                    expense.last_sync_at,
-                  )
-                : '—'
-            }
-          />
-
-          <InfoRow
-            label="External Error"
-            value={
-              expense.external_error ||
-              '—'
-            }
-          />
-        </View>
-
-        {/* STORAGE */}
-
-        <View
-          style={
-            styles.card
-          }
-        >
-          <Text
-            style={
-              styles.cardTitle
-            }
-          >
-            Receipt Storage
-          </Text>
-
-          <InfoRow
-            label="Storage Key"
-            value={
-              expense.receipt_storage_key ||
-              '—'
-            }
-          />
-        </View>
-
-        {/* RAW JSON */}
-
-        <View
-          style={
-            styles.card
-          }
-        >
-          <Pressable
-            onPress={() =>
-              setShowJson(
-                (current) =>
-                  !current,
-              )
-            }
-            style={
-              styles.jsonHeader
-            }
-          >
-            <Text
-              style={
-                styles.cardTitle
-              }
-            >
-              Raw JSON
-            </Text>
-
-            <Ionicons
-              name={
-                showJson
-                  ? 'chevron-up'
-                  : 'chevron-down'
-              }
-              size={20}
-              color="#0868AE"
-            />
-          </Pressable>
-
-          {showJson && (
-            <View
-              style={
-                styles.jsonBox
-              }
-            >
-              <Text
-                selectable
-                style={
-                  styles.jsonText
-                }
-              >
-                {JSON.stringify(
-                  expense,
-                  null,
-                  2,
-                )}
-              </Text>
-            </View>
-          )}
-        </View>
+            )}
+          </View>
+        )}
       </ScrollView>
     </View>
   );
 }
-
-/*
- * ------------------------------------------------
- * BLOB → IMAGE DATA URI
- * ------------------------------------------------
- */
 
 function blobToDataUri(
   blob: Blob,
@@ -975,32 +588,16 @@ function InfoRow({
   label,
   value,
 }: {
-  label:
-    string;
-
-  value:
-    string;
+  label: string;
+  value: string;
 }) {
   return (
-    <View
-      style={
-        styles.infoRow
-      }
-    >
-      <Text
-        style={
-          styles.infoLabel
-        }
-      >
+    <View style={styles.infoRow}>
+      <Text style={styles.infoLabel}>
         {label}
       </Text>
 
-      <Text
-        selectable
-        style={
-          styles.infoValue
-        }
-      >
+      <Text style={styles.infoValue}>
         {value}
       </Text>
     </View>
@@ -1008,13 +605,10 @@ function InfoRow({
 }
 
 function formatDateTime(
-  value:
-    string,
+  value: string,
 ) {
   const date =
-    new Date(
-      value,
-    );
+    new Date(value);
 
   if (
     Number.isNaN(
@@ -1024,453 +618,208 @@ function formatDateTime(
     return value;
   }
 
-  return date
-    .toLocaleString();
+  return date.toLocaleString();
 }
 
 const styles =
   StyleSheet.create({
     container: {
-      flex:
-        1,
-
-      backgroundColor:
-        '#F4F8FB',
+      flex: 1,
+      backgroundColor: '#F4F8FB',
     },
 
     center: {
-      flex:
-        1,
-
-      paddingHorizontal:
-        30,
-
-      alignItems:
-        'center',
-
-      justifyContent:
-        'center',
-
-      backgroundColor:
-        '#F4F8FB',
+      flex: 1,
+      paddingHorizontal: 30,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: '#F4F8FB',
     },
 
     loadingText: {
-      marginTop:
-        12,
-
-      fontSize:
-        12,
-
-      color:
-        '#7890A3',
+      marginTop: 12,
+      fontSize: 12,
+      color: '#7890A3',
     },
 
     errorTitle: {
-      marginTop:
-        12,
-
-      fontSize:
-        19,
-
-      fontWeight:
-        '700',
-
-      color:
-        '#173F60',
+      marginTop: 12,
+      fontSize: 19,
+      fontWeight: '700',
+      color: '#173F60',
     },
 
     errorText: {
-      marginTop:
-        7,
-
-      textAlign:
-        'center',
-
-      color:
-        '#B23B34',
+      marginTop: 7,
+      textAlign: 'center',
+      color: '#B23B34',
     },
 
     backButton: {
-      marginTop:
-        20,
-
-      paddingHorizontal:
-        22,
-
-      paddingVertical:
-        11,
-
-      borderRadius:
-        16,
-
-      backgroundColor:
-        '#0868AE',
+      marginTop: 20,
+      paddingHorizontal: 22,
+      paddingVertical: 11,
+      borderRadius: 16,
+      backgroundColor: '#0868AE',
     },
 
     backButtonText: {
-      fontWeight:
-        '700',
-
-      color:
-        '#FFFFFF',
+      fontWeight: '700',
+      color: '#FFFFFF',
     },
 
     header: {
-      paddingTop:
-        50,
-
-      paddingHorizontal:
-        18,
-
-      paddingBottom:
-        15,
-
-      flexDirection:
-        'row',
-
-      alignItems:
-        'center',
-
-      borderBottomWidth:
-        1,
-
-      borderBottomColor:
-        '#E8EEF3',
-
-      backgroundColor:
-        '#FFFFFF',
+      paddingTop: 50,
+      paddingHorizontal: 18,
+      paddingBottom: 15,
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderBottomWidth: 1,
+      borderBottomColor: '#E8EEF3',
+      backgroundColor: '#FFFFFF',
     },
 
     headerButton: {
-      width:
-        44,
-
-      height:
-        44,
-
-      borderRadius:
-        22,
-
-      alignItems:
-        'center',
-
-      justifyContent:
-        'center',
-
-      backgroundColor:
-        '#EFF5F9',
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: '#EFF5F9',
     },
 
     headerText: {
-      flex:
-        1,
-
-      alignItems:
-        'center',
+      flex: 1,
+      alignItems: 'center',
     },
 
     headerTitle: {
-      fontSize:
-        18.5,
-
-      fontWeight:
-        '700',
-
-      color:
-        '#0A3558',
+      fontSize: 18.5,
+      fontWeight: '700',
+      color: '#0A3558',
     },
 
     headerSubtitle: {
-      marginTop:
-        2,
-
-      fontSize:
-        10.5,
-
-      color:
-        '#8498A8',
+      marginTop: 2,
+      fontSize: 10.5,
+      color: '#8498A8',
     },
 
     headerSpacer: {
-      width:
-        44,
+      width: 44,
     },
 
     content: {
-      padding:
-        18,
-
-      paddingBottom:
-        45,
+      padding: 18,
+      paddingBottom: 45,
     },
 
     card: {
-      marginBottom:
-        14,
-
-      padding:
-        16,
-
-      borderRadius:
-        20,
-
-      backgroundColor:
-        '#FFFFFF',
-
-      elevation:
-        1,
+      marginBottom: 14,
+      padding: 16,
+      borderRadius: 20,
+      backgroundColor: '#FFFFFF',
+      elevation: 1,
     },
 
     cardHeadingRow: {
-      flexDirection:
-        'row',
-
-      alignItems:
-        'center',
-
+      flexDirection: 'row',
+      alignItems: 'center',
       justifyContent:
         'space-between',
     },
 
     cardTitle: {
-      fontSize:
-        15,
-
-      fontWeight:
-        '700',
-
-      color:
-        '#173F60',
+      fontSize: 15,
+      fontWeight: '700',
+      color: '#173F60',
     },
 
     receiptAvailableBadge: {
-      paddingHorizontal:
-        9,
-
-      paddingVertical:
-        5,
-
-      borderRadius:
-        14,
-
-      flexDirection:
-        'row',
-
-      alignItems:
-        'center',
-
-      gap:
-        4,
-
-      backgroundColor:
-        '#E8F7EF',
+      paddingHorizontal: 9,
+      paddingVertical: 5,
+      borderRadius: 14,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      backgroundColor: '#E8F7EF',
     },
 
     receiptAvailableText: {
-      fontSize:
-        9.5,
-
-      fontWeight:
-        '700',
-
-      color:
-        '#16845B',
+      fontSize: 9.5,
+      fontWeight: '700',
+      color: '#16845B',
     },
 
     receiptLoading: {
-      height:
-        220,
-
-      marginTop:
-        14,
-
-      alignItems:
-        'center',
-
-      justifyContent:
-        'center',
-
-      borderRadius:
-        16,
-
-      backgroundColor:
-        '#EDF3F7',
+      height: 220,
+      marginTop: 14,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: 16,
+      backgroundColor: '#EDF3F7',
     },
 
     receiptImage: {
-      width:
-        '100%',
-
-      height:
-        380,
-
-      marginTop:
-        14,
-
-      borderRadius:
-        16,
-
-      backgroundColor:
-        '#EDF3F7',
+      width: '100%',
+      height: 380,
+      marginTop: 14,
+      borderRadius: 16,
+      backgroundColor: '#EDF3F7',
     },
 
     noReceipt: {
-      minHeight:
-        160,
-
-      marginTop:
-        14,
-
-      paddingHorizontal:
-        20,
-
-      alignItems:
-        'center',
-
-      justifyContent:
-        'center',
-
-      borderRadius:
-        16,
-
-      backgroundColor:
-        '#EDF3F7',
+      minHeight: 160,
+      marginTop: 14,
+      paddingHorizontal: 20,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: 16,
+      backgroundColor: '#EDF3F7',
     },
 
     noReceiptTitle: {
-      marginTop:
-        9,
-
-      fontSize:
-        13,
-
-      fontWeight:
-        '700',
-
-      color:
-        '#365A73',
+      marginTop: 9,
+      fontSize: 13,
+      fontWeight: '700',
+      color: '#365A73',
     },
 
     noReceiptText: {
-      marginTop:
-        5,
-
-      textAlign:
-        'center',
-
-      fontSize:
-        11,
-
-      lineHeight:
-        16,
-
-      color:
-        '#7890A3',
+      marginTop: 5,
+      textAlign: 'center',
+      fontSize: 11,
+      lineHeight: 16,
+      color: '#7890A3',
     },
 
     infoRow: {
-      paddingVertical:
-        11,
-
-      borderBottomWidth:
-        1,
-
-      borderBottomColor:
-        '#EDF2F5',
+      paddingVertical: 11,
+      borderBottomWidth: 1,
+      borderBottomColor: '#EDF2F5',
     },
 
     infoLabel: {
-      fontSize:
-        10,
-
-      fontWeight:
-        '700',
-
-      color:
-        '#8398A8',
+      fontSize: 10,
+      fontWeight: '700',
+      color: '#8398A8',
     },
 
     infoValue: {
-      marginTop:
-        4,
-
-      fontSize:
-        12.5,
-
-      lineHeight:
-        18,
-
-      color:
-        '#254B69',
+      marginTop: 4,
+      fontSize: 12.5,
+      lineHeight: 18,
+      color: '#254B69',
     },
 
     attendee: {
-      marginTop:
-        10,
-
-      flexDirection:
-        'row',
-
-      alignItems:
-        'center',
-
-      gap:
-        8,
+      marginTop: 10,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
     },
 
     attendeeText: {
-      color:
-        '#365A73',
-    },
-
-    muted: {
-      marginTop:
-        10,
-
-      color:
-        '#8CA0AF',
-    },
-
-    jsonHeader: {
-      flexDirection:
-        'row',
-
-      alignItems:
-        'center',
-
-      justifyContent:
-        'space-between',
-    },
-
-    jsonBox: {
-      marginTop:
-        14,
-
-      padding:
-        13,
-
-      borderRadius:
-        14,
-
-      backgroundColor:
-        '#102B3E',
-    },
-
-    jsonText: {
-      fontFamily:
-        Platform.OS ===
-        'ios'
-          ? 'Menlo'
-          : 'monospace',
-
-      fontSize:
-        11,
-
-      lineHeight:
-        16,
-
-      color:
-        '#EAF3F8',
+      color: '#365A73',
     },
   });
