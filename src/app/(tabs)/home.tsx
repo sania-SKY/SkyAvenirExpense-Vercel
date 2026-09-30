@@ -251,28 +251,23 @@ export default function HomeScreen() {
    * ------------------------------------------------
    */
 
-  const submitted =
-    expenses.length;
+const submitted =
+  expenses.length;
 
-  const processing =
-    expenses.filter(
-      (expense) =>
-        expense.status ===
-          'SUBMITTED' ||
-        expense.status ===
-          'PROCESSING' ||
-        expense.status ===
-          'COMPLETED',
-    ).length;
+const processed =
+  expenses.filter(
+    (expense) =>
+      expense.status === 'SUBMITTED' ||
+      expense.status === 'PROCESSING' ||
+      expense.status === 'COMPLETED',
+  ).length;
 
-  const review =
-    expenses.filter(
-      (expense) =>
-        expense.status ===
-          'REJECTED' ||
-        expense.status ===
-          'FAILED',
-    ).length;
+const review =
+  expenses.filter(
+    (expense) =>
+      expense.status === 'REJECTED' ||
+      expense.status === 'FAILED',
+  ).length;
 
   /*
    * ------------------------------------------------
@@ -528,37 +523,41 @@ export default function HomeScreen() {
             styles.statusRow
           }
         >
-          <StatusCard
-            value={
-              submitted
-            }
-            label="Submitted"
-            status="Submitted"
-            icon="checkmark-circle-outline"
-          />
+         <StatusCard
+  value={submitted}
+  label="Submitted"
+  status="Submitted"
+  icon="checkmark-circle-outline"
+  onPress={() =>
+    router.push(
+      '/(tabs)/expenses?filter=all',
+    )
+  }
+/>
 
-          <StatusCard
-            value={
-              processing
-            }
-            label="Processed"
-            status="Processed"
-            icon="time-outline"
-          />
+<StatusCard
+  value={processed}
+  label="Processed"
+  status="Processed"
+  icon="checkmark-done-circle-outline"
+  onPress={() =>
+    router.push(
+      '/(tabs)/expenses?filter=processed',
+    )
+  }
+/>
 
-          <StatusCard
-            value={
-              review
-            }
-            label="Needs Review"
-            status="Needs Review"
-            icon="alert-circle-outline"
-            onPress={() =>
-              router.push(
-                '/(tabs)/expenses?filter=needs-review',
-              )
-            }
-          />
+<StatusCard
+  value={review}
+  label="Needs Review"
+  status="Needs Review"
+  icon="alert-circle-outline"
+  onPress={() =>
+    router.push(
+      '/(tabs)/expenses?filter=needs-review',
+    )
+  }
+/>
         </View>
 
         {/* RECENT HEADER */}
@@ -983,35 +982,23 @@ function ExpenseRow({
     getStatusLabel(
       expense.status,
     );
+const statusTheme =
+  expense.status === 'FAILED' ||
+  expense.status === 'REJECTED'
+    ? {
+        background:
+          '#FDECEA',
 
-  const statusTheme =
-    expense.status ===
-      'SUBMITTED'
-      ? {
-          background:
-            '#FFF4DD',
+        foreground:
+          '#B23B34',
+      }
+    : {
+        background:
+          '#E8F7EF',
 
-          foreground:
-            '#A66A00',
-        }
-      : expense.status ===
-            'PROCESSING' ||
-          expense.status ===
-            'COMPLETED'
-        ? {
-            background:
-              '#E8F7EF',
-
-            foreground:
-              '#17875D',
-          }
-        : {
-            background:
-              '#FDECEA',
-
-            foreground:
-              '#B23B34',
-          };
+        foreground:
+          '#17875D',
+      };
 
   return (
     <Pressable
@@ -1238,26 +1225,18 @@ function getStatusLabel(
   status:
     ExpenseStatus,
 ) {
-  switch (
-    status
-  ) {
+  switch (status) {
     case 'SUBMITTED':
-      return 'Submitted';
-
     case 'PROCESSING':
-      return 'Processed';
-
     case 'COMPLETED':
       return 'Processed';
 
     case 'REJECTED':
-      return 'Needs Review';
-
     case 'FAILED':
       return 'Needs Review';
 
     default:
-      return status;
+      return 'Processed';
   }
 }
 

@@ -86,9 +86,12 @@ export default function ExpensesScreen() {
         string;
     }>();
 
-  const needsReviewOnly =
-    params.filter ===
-    'needs-review';
+  const expenseFilter =
+  params.filter === 'processed'
+    ? 'processed'
+    : params.filter === 'needs-review'
+      ? 'needs-review'
+      : 'all';
 
   const [
     expenses,
@@ -205,14 +208,22 @@ export default function ExpensesScreen() {
     ),
   );
 
-  const visibleExpenses =
-    needsReviewOnly
+const visibleExpenses =
+  expenseFilter === 'processed'
+    ? expenses.filter(
+        (expense) =>
+          resolveDisplayStatus(
+            expense,
+          ) === 'Processed',
+      )
+    : expenseFilter ===
+        'needs-review'
       ? expenses.filter(
           (expense) =>
-            expense.status ===
-              'REJECTED' ||
-            expense.status ===
-              'FAILED',
+            resolveDisplayStatus(
+              expense,
+            ) ===
+            'Needs Review',
         )
       : expenses;
 
@@ -256,9 +267,12 @@ export default function ExpensesScreen() {
               styles.title
             }
           >
-            {needsReviewOnly
-              ? 'Needs Review'
-              : 'My Expenses'}
+           {expenseFilter === 'processed'
+  ? 'Processed'
+  : expenseFilter ===
+      'needs-review'
+    ? 'Needs Review'
+    : 'Submitted'}
           </Text>
 
           <Text
@@ -267,11 +281,14 @@ export default function ExpensesScreen() {
             }
             numberOfLines={1}
           >
-            {needsReviewOnly
-              ? 'Receipts that need a clearer photo'
-              : user?.name
-                ? `${user.name}'s expense records`
-                : 'Your expense records'}
+           {expenseFilter === 'processed'
+  ? 'Receipts successfully processed'
+  : expenseFilter ===
+      'needs-review'
+    ? 'Receipts that need attention'
+    : user?.name
+      ? `${user.name}'s submitted expenses`
+      : 'All your submitted expenses'}
           </Text>
         </View>
 
@@ -383,9 +400,12 @@ export default function ExpensesScreen() {
               styles.emptyTitle
             }
           >
-            {needsReviewOnly
-              ? 'Nothing needs review'
-              : 'No expenses yet'}
+           {expenseFilter === 'processed'
+  ? 'No processed expenses'
+  : expenseFilter ===
+      'needs-review'
+    ? 'Nothing needs review'
+    : 'No submitted expenses'}
           </Text>
 
           <Text
@@ -393,9 +413,12 @@ export default function ExpensesScreen() {
               styles.emptyText
             }
           >
-            {needsReviewOnly
-              ? 'Blurry receipts that need a clearer photo will show up here.'
-              : 'Capture and submit a receipt. It will appear here after the backend saves it.'}
+            {expenseFilter === 'processed'
+  ? 'Processed receipts will appear here.'
+  : expenseFilter ===
+      'needs-review'
+    ? 'Receipts that require attention will appear here.'
+    : 'Capture and submit a receipt. It will appear here after the backend saves it.'}
           </Text>
 
           <Pressable
@@ -757,34 +780,9 @@ function resolveDisplayStatus(
       ?.trim()
       .toUpperCase();
 
-  /*
-   * External system has priority once it
-   * starts processing the expense.
-   */
-
   if (
     external ===
-      'COMPLETED' ||
-    external ===
-      'SUCCESS' ||
-    external ===
-      'SUCCEEDED'
-  ) {
-    return 'Processed';
-  }
-
-  if (
-    external ===
-      'PROCESSING' ||
-    external ===
-      'PENDING' ||
-    external ===
-      'QUEUED'
-  ) {
-    return 'Processed';
-  }
-
-  if (
+      'NEEDS_REVIEW' ||
     external ===
       'FAILED' ||
     external ===
@@ -795,23 +793,22 @@ function resolveDisplayStatus(
     return 'Needs Review';
   }
 
-  switch (
-    expense.status
+  if (
+    expense.status ===
+      'FAILED' ||
+    expense.status ===
+      'REJECTED'
   ) {
-    case 'COMPLETED':
-      return 'Processed';
-
-    case 'PROCESSING':
-      return 'Processed';
-
-    case 'REJECTED':
-    case 'FAILED':
-      return 'Needs Review';
-
-    case 'SUBMITTED':
-    default:
-      return 'Submitted';
+    return 'Needs Review';
   }
+
+  /*
+   * Any successfully submitted receipt that
+   * does not need review is shown as Processed.
+   *
+   * "Submitted" is a summary/count only.
+   */
+  return 'Processed';
 }
 
 function getStatusTheme(
