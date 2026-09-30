@@ -51,6 +51,7 @@ import {
 } from '../../../services/auth';
 
 import {
+  assessReceiptBlur,
   BLURRY_RECEIPT_MESSAGE,
 } from '../../utils/blur-detection';
 
@@ -113,10 +114,6 @@ export default function SubmitExpenseScreen() {
     receipt,
     clearReceipt,
   } = useReceipt();
-
-  const receiptNeedsReview =
-    receipt?.isBlurry ===
-    true;
 
   const [
     category,
@@ -609,10 +606,39 @@ if (
        * STEP 4
        * CREATE DATABASE EXPENSE
        * ------------------------------------------------
+       *
+       * Blur is checked only at submit time so
+       * capture / preview stay normal. A blurry
+       * receipt is still saved, then marked Needs
+       * Review for a clear retake later.
+       * ------------------------------------------------
        */
 
       console.log(
+        '[Expense] Checking receipt clarity...',
+      );
+
+      const blurAssessment =
+        receipt?.uri
+          ? await assessReceiptBlur(
+              receipt.uri,
+            )
+          : {
+              isBlurry:
+                false,
+
+              score:
+                Number.POSITIVE_INFINITY,
+            };
+
+      const receiptNeedsReview =
+        blurAssessment.isBlurry;
+
+      console.log(
         '[Expense] Creating database record...',
+        {
+          receiptNeedsReview,
+        },
       );
 
       const response =

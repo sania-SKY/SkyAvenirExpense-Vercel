@@ -16,11 +16,13 @@ export default function ExpenseSuccessScreen() {
 
   function handleBackHome() {
     clearReceipt();
+
     router.replace('/(tabs)/home');
   }
 
   function handleAnotherReceipt() {
     clearReceipt();
+
     router.replace('/expense/capture');
   }
 
@@ -47,7 +49,8 @@ export default function ExpenseSuccessScreen() {
         </Text>
 
         <Text style={styles.subtitle}>
-          Your receipt and expense details have been submitted successfully.
+          Your receipt and expense details have
+          been submitted successfully.
         </Text>
 
         <Pressable
@@ -82,9 +85,19 @@ export default function ExpenseSuccessScreen() {
           />
 
           <Text style={styles.secondaryText}>
-            Capture Another Expense
+            Submit Another Receipt
           </Text>
         </Pressable>
+      </View>
+
+      <View style={styles.footer}>
+        <Text style={styles.footerText}>
+          SKY AVENIR EXPENSE
+        </Text>
+
+        <Text style={styles.footerSubtext}>
+          Simple. Secure. Efficient.
+        </Text>
       </View>
     </View>
   );
@@ -211,5 +224,23 @@ const styles = StyleSheet.create({
 
   secondaryPressed: {
     backgroundColor: '#F7FAFC',
+  },
+
+  footer: {
+    paddingBottom: 28,
+    alignItems: 'center',
+  },
+
+  footerText: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 1.2,
+    color: '#8CA3B5',
+  },
+
+  footerSubtext: {
+    marginTop: 4,
+    fontSize: 11,
+    color: '#A8B8C5',
   },
 });

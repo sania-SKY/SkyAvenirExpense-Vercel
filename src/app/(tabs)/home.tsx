@@ -984,24 +984,31 @@ function ExpenseRow({
 
   const statusTheme =
     expense.status ===
-      'SUBMITTED' ||
-    expense.status ===
-      'COMPLETED'
+      'SUBMITTED'
       ? {
+          /*
+           * Match the Home status cards:
+           * Submitted = yellow.
+           */
           background:
-            '#E8F7EF',
+            '#FFF4DD',
 
           foreground:
-            '#16845B',
+            '#A66A00',
         }
       : expense.status ===
-          'PROCESSING'
+            'PROCESSING' ||
+          expense.status ===
+            'COMPLETED'
         ? {
+            /*
+             * Processed / completed = green.
+             */
             background:
-              '#FFF4DD',
+              '#E8F7EF',
 
             foreground:
-              '#A66A00',
+              '#17875D',
           }
         : {
             background:
@@ -1239,10 +1246,10 @@ function getStatusLabel(
       return 'Submitted';
 
     case 'PROCESSING':
-      return 'Processing';
+      return 'Processed';
 
     case 'COMPLETED':
-      return 'Completed';
+      return 'Processed';
 
     case 'REJECTED':
       return 'Needs Review';
@@ -2009,6 +2016,9 @@ const styles =
 
       alignItems:
         'center',
+
+      width:
+        '100%',
     },
 
     expenseRowPressed: {
@@ -2042,6 +2052,9 @@ const styles =
 
       backgroundColor:
         '#E8F3FA',
+
+      flexShrink:
+        0,
     },
 
     expenseInfo: {
@@ -2052,7 +2065,10 @@ const styles =
         11,
 
       paddingRight:
-        5,
+        8,
+
+      minWidth:
+        0,
     },
 
     expenseCategory: {
@@ -2091,6 +2107,12 @@ const styles =
     expenseRight: {
       alignItems:
         'flex-end',
+
+      justifyContent:
+        'center',
+
+      flexShrink:
+        0,
     },
 
     statusChip: {

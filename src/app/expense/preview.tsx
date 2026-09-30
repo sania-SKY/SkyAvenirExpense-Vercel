@@ -1,5 +1,4 @@
 import {
-  useEffect,
   useState,
 } from 'react';
 
@@ -38,16 +37,11 @@ import type {
   CropRegion,
 } from '../../components/receipt-crop-modal';
 
-import {
-  assessReceiptBlur,
-} from '../../utils/blur-detection';
-
 export default function ReceiptPreviewScreen() {
   const {
     receipt,
     setReceipt,
     updateReceiptUri,
-    setReceiptBlurry,
     clearReceipt,
   } = useReceipt();
 
@@ -67,11 +61,6 @@ export default function ReceiptPreviewScreen() {
   ] = useState(false);
 
   const [
-    blurChecking,
-    setBlurChecking,
-  ] = useState(false);
-
-  const [
     cropModalVisible,
     setCropModalVisible,
   ] = useState(false);
@@ -86,65 +75,6 @@ export default function ReceiptPreviewScreen() {
 
   const receiptUri =
     receipt?.uri ?? '';
-
-  const isBlurry =
-    receipt?.isBlurry ===
-    true;
-
-  useEffect(
-    () => {
-      let active =
-        true;
-
-      async function checkBlur() {
-        if (
-          !receiptUri ||
-          !imageLoaded ||
-          imageError
-        ) {
-          return;
-        }
-
-        setBlurChecking(
-          true,
-        );
-
-        try {
-          const assessment =
-            await assessReceiptBlur(
-              receiptUri,
-            );
-
-          if (!active) {
-            return;
-          }
-
-          setReceiptBlurry(
-            assessment.isBlurry,
-          );
-        } finally {
-          if (active) {
-            setBlurChecking(
-              false,
-            );
-          }
-        }
-      }
-
-      void checkBlur();
-
-      return () => {
-        active =
-          false;
-      };
-    },
-    [
-      receiptUri,
-      imageLoaded,
-      imageError,
-      setReceiptBlurry,
-    ],
-  );
 
   /*
    * ------------------------------------------------
@@ -794,68 +724,26 @@ export default function ReceiptPreviewScreen() {
           )}
         </View>
 
-        {(isBlurry ||
-          blurChecking) && (
-          <View
-            style={[
-              styles.reviewNotice,
+        <View
+          style={
+            styles.reviewNotice
+          }
+        >
+          <Ionicons
+            name="eye-outline"
+            size={17}
+            color="#075A98"
+          />
 
-              isBlurry &&
-                styles.blurNotice,
-            ]}
-          >
-            <Ionicons
-              name={
-                isBlurry
-                  ? 'alert-circle-outline'
-                  : 'eye-outline'
-              }
-              size={17}
-              color={
-                isBlurry
-                  ? '#A66A00'
-                  : '#075A98'
-              }
-            />
-
-            <Text
-              style={[
-                styles.reviewNoticeText,
-
-                isBlurry &&
-                  styles.blurNoticeText,
-              ]}
-            >
-              {blurChecking
-                ? 'Checking receipt clarity...'
-                : 'This receipt looks blurry. You can retake it, or continue — it will go to Needs Review.'}
-            </Text>
-          </View>
-        )}
-
-        {!isBlurry &&
-          !blurChecking && (
-          <View
+          <Text
             style={
-              styles.reviewNotice
+              styles.reviewNoticeText
             }
           >
-            <Ionicons
-              name="eye-outline"
-              size={17}
-              color="#075A98"
-            />
-
-            <Text
-              style={
-                styles.reviewNoticeText
-              }
-            >
-              Make sure all receipt
-              details are clearly visible
-            </Text>
-          </View>
-        )}
+            Make sure all receipt
+            details are clearly visible
+          </Text>
+        </View>
       </View>
 
       {/* TOOLS */}
@@ -1258,19 +1146,11 @@ const styles =
       backgroundColor: '#E6F1F9',
     },
 
-    blurNotice: {
-      backgroundColor: '#FFF4DD',
-    },
-
     reviewNoticeText: {
       flex: 1,
       fontSize: 11.5,
       fontWeight: '600',
       color: '#376984',
-    },
-
-    blurNoticeText: {
-      color: '#A66A00',
     },
 
     toolsCard: {

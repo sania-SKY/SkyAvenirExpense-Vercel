@@ -770,7 +770,7 @@ function resolveDisplayStatus(
     external ===
       'SUCCEEDED'
   ) {
-    return 'Completed';
+    return 'Processed';
   }
 
   if (
@@ -781,7 +781,7 @@ function resolveDisplayStatus(
     external ===
       'QUEUED'
   ) {
-    return 'Processing';
+    return 'Processed';
   }
 
   if (
@@ -799,10 +799,10 @@ function resolveDisplayStatus(
     expense.status
   ) {
     case 'COMPLETED':
-      return 'Completed';
+      return 'Processed';
 
     case 'PROCESSING':
-      return 'Processing';
+      return 'Processed';
 
     case 'REJECTED':
     case 'FAILED':
@@ -820,21 +820,22 @@ function getStatusTheme(
 ) {
   switch (status) {
     case 'Completed':
+    case 'Processed':
       return {
         background:
           '#E8F7EF',
 
         foreground:
-          '#16845B',
+          '#17875D',
       };
 
     case 'Processing':
       return {
         background:
-          '#FFF4DD',
+          '#E8F7EF',
 
         foreground:
-          '#A66A00',
+          '#17875D',
       };
 
     case 'Needs Review':
@@ -846,13 +847,14 @@ function getStatusTheme(
           '#B23B34',
       };
 
+    case 'Submitted':
     default:
       return {
         background:
-          '#E7F2FA',
+          '#FFF4DD',
 
         foreground:
-          '#0868AE',
+          '#A66A00',
       };
   }
 }
