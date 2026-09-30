@@ -43,7 +43,12 @@ import {
 
 import {
   categories,
+  frequentlyUsedCategories,
 } from '../../../data/categories';
+
+import {
+  wavetronixEmployees,
+} from '../../../data/wemployees';
 
 import {
   authenticatedFetch,
@@ -156,6 +161,14 @@ const [
   );
 
 const [
+  activeWavetronixIndex,
+  setActiveWavetronixIndex,
+] =
+  useState<number | null>(
+    null,
+  );
+
+const [
   nonWavetronixAttendees,
   setNonWavetronixAttendees,
 ] =
@@ -178,6 +191,30 @@ const [
   const requiresAttendees =
     category ===
     'Travel - Meals and Entertainment with Attendees';
+
+  const favoriteCategorySet =
+    new Set<string>(
+      frequentlyUsedCategories,
+    );
+
+  const otherCategories = [
+    ...categories,
+  ]
+    .filter(
+      (option) =>
+        !favoriteCategorySet.has(
+          option,
+        ),
+    )
+    .sort(
+      (
+        a,
+        b,
+      ) =>
+        a.localeCompare(
+          b,
+        ),
+    );
 
   const selectorOptions =
     selectorType ===
@@ -291,6 +328,76 @@ function removeAttendee(
     },
   );
 }
+
+  function getWavetronixSuggestions(
+    query: string,
+    currentIndex: number,
+  ) {
+    const trimmed =
+      query.trim().toLowerCase();
+
+    if (!trimmed) {
+      return [];
+    }
+
+    const selectedElsewhere =
+      new Set(
+        wavetronixAttendees
+          .filter(
+            (
+              name,
+              index,
+            ) =>
+              index !==
+                currentIndex &&
+              name
+                .trim()
+                .length >
+                0,
+          )
+          .map(
+            (name) =>
+              name
+                .trim()
+                .toLowerCase(),
+          ),
+      );
+
+    return wavetronixEmployees
+      .filter(
+        (name) => {
+          const lower =
+            name.toLowerCase();
+
+          return (
+            lower.includes(
+              trimmed,
+            ) &&
+            !selectedElsewhere.has(
+              lower,
+            )
+          );
+        },
+      )
+      .slice(
+        0,
+        8,
+      );
+  }
+
+  function selectWavetronixSuggestion(
+    index: number,
+    name: string,
+  ) {
+    updateAttendee(
+      'WAVETRONIX_EMPLOYEE',
+      index,
+      name,
+    );
+    setActiveWavetronixIndex(
+      null,
+    );
+  }
 
   function validateExpense() {
     if (!category) {
@@ -1151,79 +1258,184 @@ if (
           (
             attendee,
             index,
-          ) => (
-            <View
-              key={
-                index
-              }
-              style={
-                styles.attendeeRow
-              }
-            >
+          ) => {
+            const suggestions =
+              activeWavetronixIndex ===
+              index
+                ? getWavetronixSuggestions(
+                    attendee,
+                    index,
+                  )
+                : [];
+
+            return (
               <View
+                key={
+                  index
+                }
                 style={
-                  styles.attendeeInputContainer
+                  styles.attendeeFieldBlock
                 }
               >
-                <Ionicons
-                  name="person-outline"
-                  size={
-                    18
-                  }
-                  color="#698297"
-                />
+                <View
+                  style={[
+                    styles.attendeeRow,
 
-                <TextInput
-                  editable={
-                    !isSubmitting
-                  }
-                  value={
-                    attendee
-                  }
-                  onChangeText={(
-                    value,
-                  ) =>
-                    updateAttendee(
-                      'WAVETRONIX_EMPLOYEE',
-                      index,
-                      value,
-                    )
-                  }
-                  placeholder="Wavetronix employee name"
-                  placeholderTextColor="#91A3B1"
-                  style={
-                    styles.attendeeInput
-                  }
-                />
-              </View>
-
-              {wavetronixAttendees.length >
-                1 && (
-                <Pressable
-                  disabled={
-                    isSubmitting
-                  }
-                  onPress={() =>
-                    removeAttendee(
-                      'WAVETRONIX_EMPLOYEE',
-                      index,
-                    )
-                  }
-                  style={
-                    styles.removeAttendee
-                  }
+                    suggestions.length >
+                      0 && {
+                      marginBottom:
+                        0,
+                    },
+                  ]}
                 >
-                  <Ionicons
-                    name="close"
-                    size={
-                      19
+                  <View
+                    style={
+                      styles.attendeeInputContainer
                     }
-                    color="#B23B34"
-                  />
-                </Pressable>
-              )}
-            </View>
-          ),
+                  >
+                    <Ionicons
+                      name="person-outline"
+                      size={
+                        18
+                      }
+                      color="#698297"
+                    />
+
+                    <TextInput
+                      editable={
+                        !isSubmitting
+                      }
+                      value={
+                        attendee
+                      }
+                      onChangeText={(
+                        value,
+                      ) =>
+                        updateAttendee(
+                          'WAVETRONIX_EMPLOYEE',
+                          index,
+                          value,
+                        )
+                      }
+                      onFocus={() =>
+                        setActiveWavetronixIndex(
+                          index,
+                        )
+                      }
+                      onBlur={() =>
+                        setTimeout(
+                          () => {
+                            setActiveWavetronixIndex(
+                              (
+                                current,
+                              ) =>
+                                current ===
+                                index
+                                  ? null
+                                  : current,
+                            );
+                          },
+                          150,
+                        )
+                      }
+                      placeholder="Wavetronix employee name"
+                      placeholderTextColor="#91A3B1"
+                      autoCorrect={
+                        false
+                      }
+                      style={
+                        styles.attendeeInput
+                      }
+                    />
+                  </View>
+
+                  {wavetronixAttendees.length >
+                    1 && (
+                    <Pressable
+                      disabled={
+                        isSubmitting
+                      }
+                      onPress={() =>
+                        removeAttendee(
+                          'WAVETRONIX_EMPLOYEE',
+                          index,
+                        )
+                      }
+                      style={
+                        styles.removeAttendee
+                      }
+                    >
+                      <Ionicons
+                        name="close"
+                        size={
+                          19
+                        }
+                        color="#B23B34"
+                      />
+                    </Pressable>
+                  )}
+                </View>
+
+                {suggestions.length >
+                  0 && (
+                  <View
+                    style={
+                      styles.attendeeSuggestions
+                    }
+                  >
+                    {suggestions.map(
+                      (
+                        name,
+                        suggestionIndex,
+                      ) => (
+                        <Pressable
+                          key={
+                            name
+                          }
+                          onPressIn={() =>
+                            selectWavetronixSuggestion(
+                              index,
+                              name,
+                            )
+                          }
+                          style={[
+                            styles.attendeeSuggestionRow,
+
+                            suggestionIndex <
+                              suggestions.length -
+                                1 &&
+                              styles.attendeeSuggestionRowBorder,
+                          ]}
+                        >
+                          <View
+                            style={
+                              styles.attendeeSuggestionIcon
+                            }
+                          >
+                            <Ionicons
+                              name="person"
+                              size={
+                                14
+                              }
+                              color="#0868AE"
+                            />
+                          </View>
+
+                          <Text
+                            style={
+                              styles.attendeeSuggestionText
+                            }
+                          >
+                            {name}
+                          </Text>
+                        </Pressable>
+                      ),
+                    )}
+                  </View>
+                )}
+              </View>
+            );
+          },
         )}
 
         <Pressable
@@ -1595,56 +1807,199 @@ if (
                 false
               }
             >
-              {selectorOptions.map(
-                (
-                  option,
-                ) => {
-                  const selected =
-                    selectorType ===
-                    'category'
-                      ? category ===
-                        option
-                      : businessPurpose ===
+              {selectorType ===
+              'category' ? (
+                <>
+                  <Text
+                    style={
+                      styles.selectorSectionLabel
+                    }
+                  >
+                    FREQUENTLY USED
+                  </Text>
+
+                  {frequentlyUsedCategories.map(
+                    (
+                      option,
+                    ) => {
+                      const selected =
+                        category ===
                         option;
 
-                  return (
-                    <Pressable
-                      key={
-                        option
-                      }
-                      onPress={() =>
-                        selectOption(
-                          option,
-                        )
-                      }
-                      style={[
-                        styles.optionRow,
+                      return (
+                        <Pressable
+                          key={
+                            option
+                          }
+                          onPress={() =>
+                            selectOption(
+                              option,
+                            )
+                          }
+                          style={[
+                            styles.optionRow,
 
-                        selected &&
-                          styles.optionRowSelected,
-                      ]}
+                            selected &&
+                              styles.optionRowSelected,
+                          ]}
+                        >
+                          <View
+                            style={
+                              styles.favoriteIcon
+                            }
+                          >
+                            <Ionicons
+                              name="star-outline"
+                              size={16}
+                              color="#C9A227"
+                            />
+                          </View>
+
+                          <Text
+                            style={[
+                              styles.optionText,
+
+                              selected &&
+                                styles.optionTextSelected,
+                            ]}
+                          >
+                            {option}
+                          </Text>
+
+                          {selected && (
+                            <Ionicons
+                              name="checkmark-circle"
+                              size={21}
+                              color="#0868AE"
+                            />
+                          )}
+                        </Pressable>
+                      );
+                    },
+                  )}
+
+                  <View
+                    style={
+                      styles.selectorSectionDivider
+                    }
+                  >
+                    <View
+                      style={
+                        styles.selectorSectionLine
+                      }
+                    />
+
+                    <Text
+                      style={
+                        styles.selectorSectionDividerLabel
+                      }
                     >
-                      <Text
+                      ALL EXPENSE TYPES
+                    </Text>
+
+                    <View
+                      style={
+                        styles.selectorSectionLine
+                      }
+                    />
+                  </View>
+
+                  {otherCategories.map(
+                    (
+                      option,
+                    ) => {
+                      const selected =
+                        category ===
+                        option;
+
+                      return (
+                        <Pressable
+                          key={
+                            option
+                          }
+                          onPress={() =>
+                            selectOption(
+                              option,
+                            )
+                          }
+                          style={[
+                            styles.optionRow,
+
+                            selected &&
+                              styles.optionRowSelected,
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.optionText,
+
+                              selected &&
+                                styles.optionTextSelected,
+                            ]}
+                          >
+                            {option}
+                          </Text>
+
+                          {selected && (
+                            <Ionicons
+                              name="checkmark-circle"
+                              size={21}
+                              color="#0868AE"
+                            />
+                          )}
+                        </Pressable>
+                      );
+                    },
+                  )}
+                </>
+              ) : (
+                selectorOptions.map(
+                  (
+                    option,
+                  ) => {
+                    const selected =
+                      businessPurpose ===
+                      option;
+
+                    return (
+                      <Pressable
+                        key={
+                          option
+                        }
+                        onPress={() =>
+                          selectOption(
+                            option,
+                          )
+                        }
                         style={[
-                          styles.optionText,
+                          styles.optionRow,
 
                           selected &&
-                            styles.optionTextSelected,
+                            styles.optionRowSelected,
                         ]}
                       >
-                        {option}
-                      </Text>
+                        <Text
+                          style={[
+                            styles.optionText,
 
-                      {selected && (
-                        <Ionicons
-                          name="checkmark-circle"
-                          size={21}
-                          color="#0868AE"
-                        />
-                      )}
-                    </Pressable>
-                  );
-                },
+                            selected &&
+                              styles.optionTextSelected,
+                          ]}
+                        >
+                          {option}
+                        </Text>
+
+                        {selected && (
+                          <Ionicons
+                            name="checkmark-circle"
+                            size={21}
+                            color="#0868AE"
+                          />
+                        )}
+                      </Pressable>
+                    );
+                  },
+                )
               )}
             </ScrollView>
           </Pressable>
@@ -2179,6 +2534,11 @@ attendeeTabTextActive: {
         9,
     },
 
+    attendeeFieldBlock: {
+      marginBottom:
+        0,
+    },
+
     attendeeInputContainer: {
       flex:
         1,
@@ -2220,6 +2580,88 @@ attendeeTabTextActive: {
 
       color:
         '#173F60',
+    },
+
+    attendeeSuggestions: {
+      marginTop:
+        4,
+
+      marginBottom:
+        9,
+
+      borderWidth:
+        1,
+
+      borderColor:
+        '#D4E2EB',
+
+      borderRadius:
+        14,
+
+      backgroundColor:
+        '#FFFFFF',
+
+      overflow:
+        'hidden',
+    },
+
+    attendeeSuggestionRow: {
+      minHeight:
+        48,
+
+      paddingHorizontal:
+        12,
+
+      flexDirection:
+        'row',
+
+      alignItems:
+        'center',
+
+      gap:
+        10,
+    },
+
+    attendeeSuggestionRowBorder: {
+      borderBottomWidth:
+        1,
+
+      borderBottomColor:
+        '#E6EEF3',
+    },
+
+    attendeeSuggestionIcon: {
+      width:
+        28,
+
+      height:
+        28,
+
+      borderRadius:
+        14,
+
+      alignItems:
+        'center',
+
+      justifyContent:
+        'center',
+
+      backgroundColor:
+        '#E8F4FB',
+    },
+
+    attendeeSuggestionText: {
+      flex:
+        1,
+
+      fontSize:
+        14,
+
+      fontWeight:
+        '700',
+
+      color:
+        '#0A3558',
     },
 
     removeAttendee: {
@@ -2595,6 +3037,91 @@ attendeeTabTextActive: {
     optionsList: {
       maxHeight:
         430,
+    },
+
+    selectorSectionLabel: {
+      marginBottom:
+        10,
+
+      marginTop:
+        2,
+
+      fontSize:
+        11,
+
+      fontWeight:
+        '700',
+
+      letterSpacing:
+        0.8,
+
+      color:
+        '#9AABB8',
+    },
+
+    selectorSectionDivider: {
+      marginTop:
+        10,
+
+      marginBottom:
+        14,
+
+      flexDirection:
+        'row',
+
+      alignItems:
+        'center',
+
+      gap:
+        10,
+    },
+
+    selectorSectionLine: {
+      flex:
+        1,
+
+      height:
+        1,
+
+      backgroundColor:
+        '#D9E3EA',
+    },
+
+    selectorSectionDividerLabel: {
+      fontSize:
+        11,
+
+      fontWeight:
+        '700',
+
+      letterSpacing:
+        0.8,
+
+      color:
+        '#9AABB8',
+    },
+
+    favoriteIcon: {
+      width:
+        28,
+
+      height:
+        28,
+
+      marginRight:
+        10,
+
+      borderRadius:
+        8,
+
+      alignItems:
+        'center',
+
+      justifyContent:
+        'center',
+
+      backgroundColor:
+        '#F7F1D8',
     },
 
     optionRow: {

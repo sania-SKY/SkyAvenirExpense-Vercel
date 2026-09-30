@@ -3,7 +3,6 @@ import {
 } from '@expo/vector-icons';
 
 import {
-  Link,
   router,
   useFocusEffect,
 } from 'expo-router';
@@ -245,22 +244,25 @@ export default function HomeScreen() {
    * ------------------------------------------------
    * REAL STATUS COUNTS
    * ------------------------------------------------
+   *
+   * Submitted  = total receipts submitted
+   * Processed  = clear / readable receipts
+   * Needs Review = blurry receipts (FAILED/REJECTED)
+   * ------------------------------------------------
    */
 
   const submitted =
-    expenses.filter(
-      (expense) =>
-        expense.status ===
-          'SUBMITTED' ||
-        expense.status ===
-          'COMPLETED',
-    ).length;
+    expenses.length;
 
   const processing =
     expenses.filter(
       (expense) =>
         expense.status ===
-        'PROCESSING',
+          'SUBMITTED' ||
+        expense.status ===
+          'PROCESSING' ||
+        expense.status ===
+          'COMPLETED',
     ).length;
 
   const review =
@@ -986,10 +988,6 @@ function ExpenseRow({
     expense.status ===
       'SUBMITTED'
       ? {
-          /*
-           * Match the Home status cards:
-           * Submitted = yellow.
-           */
           background:
             '#FFF4DD',
 
@@ -1001,9 +999,6 @@ function ExpenseRow({
           expense.status ===
             'COMPLETED'
         ? {
-            /*
-             * Processed / completed = green.
-             */
             background:
               '#E8F7EF',
 
@@ -1019,32 +1014,36 @@ function ExpenseRow({
           };
 
   return (
-    <Link
-      href={{
-        pathname:
-          '/expense/[id]',
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`Open ${expense.category} expense`}
+      onPress={() =>
+        router.push({
+          pathname:
+            '/expense/[id]',
 
-        params: {
-          id:
-            expense.id,
-        },
-      }}
-      asChild
+          params: {
+            id:
+              expense.id,
+          },
+        })
+      }
+      style={({
+        pressed,
+      }) => [
+        styles.expenseRow,
+
+        !last &&
+          styles.expenseDivider,
+
+        pressed &&
+          styles.expenseRowPressed,
+      ]}
     >
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`Open ${expense.category} expense`}
-        style={({
-          pressed,
-        }) => [
-          styles.expenseRow,
-
-          !last &&
-            styles.expenseDivider,
-
-          pressed &&
-            styles.expenseRowPressed,
-        ]}
+      <View
+        style={
+          styles.expenseRowInner
+        }
       >
         <View
           style={
@@ -1136,8 +1135,8 @@ function ExpenseRow({
             </Text>
           </View>
         </View>
-      </Pressable>
-    </Link>
+      </View>
+    </Pressable>
   );
 }
 
@@ -2002,6 +2001,11 @@ const styles =
     },
 
     expenseRow: {
+      width:
+        '100%',
+    },
+
+    expenseRowInner: {
       minHeight:
         83,
 
@@ -2064,8 +2068,8 @@ const styles =
       marginLeft:
         11,
 
-      paddingRight:
-        8,
+      marginRight:
+        10,
 
       minWidth:
         0,
@@ -2106,13 +2110,16 @@ const styles =
 
     expenseRight: {
       alignItems:
-        'flex-end',
+        'center',
 
       justifyContent:
         'center',
 
       flexShrink:
         0,
+
+      alignSelf:
+        'center',
     },
 
     statusChip: {
