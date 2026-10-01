@@ -126,6 +126,13 @@ export default function SubmitExpenseScreen() {
   ] = useState('');
 
   const [
+  categorySearch,
+  setCategorySearch,
+] = useState('');
+
+ 
+
+  const [
     businessPurpose,
     setBusinessPurpose,
   ] = useState('');
@@ -215,6 +222,35 @@ const [
           b,
         ),
     );
+
+    const normalizedCategorySearch =
+  categorySearch
+    .trim()
+    .toLowerCase();
+
+const filteredFrequentlyUsedCategories =
+  normalizedCategorySearch
+    ? frequentlyUsedCategories.filter(
+        (option) =>
+          option
+            .toLowerCase()
+            .includes(
+              normalizedCategorySearch,
+            ),
+      )
+    : frequentlyUsedCategories;
+
+const filteredOtherCategories =
+  normalizedCategorySearch
+    ? otherCategories.filter(
+        (option) =>
+          option
+            .toLowerCase()
+            .includes(
+              normalizedCategorySearch,
+            ),
+      )
+    : otherCategories;
 
   const selectorOptions =
     selectorType ===
@@ -1136,11 +1172,12 @@ if (
             disabled={
               isSubmitting
             }
-            onPress={() =>
-              setSelectorType(
-                'category',
-              )
-            }
+           onPress={() => {
+  setCategorySearch('');
+  setSelectorType(
+    'category',
+  );
+}}
           />
 
           <FieldLabel
@@ -1796,8 +1833,55 @@ if (
                   size={20}
                   color="#45647D"
                 />
-              </Pressable>
+              
+
+                          </Pressable>
             </View>
+
+            {/* CATEGORY SEARCH */}
+            {selectorType === 'category' && (
+              <View
+                style={
+                  styles.categorySearchContainer
+                }
+              >
+                <Ionicons
+                  name="search-outline"
+                  size={19}
+                  color="#698297"
+                />
+
+                <TextInput
+                  value={categorySearch}
+                  onChangeText={
+                    setCategorySearch
+                  }
+                  placeholder="Search expense categories"
+                  placeholderTextColor="#91A3B1"
+                  autoCorrect={false}
+                  autoCapitalize="none"
+                  style={
+                    styles.categorySearchInput
+                  }
+                />
+
+                {categorySearch.length > 0 && (
+                  <Pressable
+                    onPress={() =>
+                      setCategorySearch('')
+                    }
+                  >
+                    <Ionicons
+                      name="close-circle"
+                      size={20}
+                      color="#91A3B1"
+                    />
+                  </Pressable>
+                )}
+              </View>
+            )}
+
+            
 
             <ScrollView
               style={
@@ -1818,7 +1902,7 @@ if (
                     FREQUENTLY USED
                   </Text>
 
-                  {frequentlyUsedCategories.map(
+                  {filteredFrequentlyUsedCategories.map(
                     (
                       option,
                     ) => {
@@ -1904,7 +1988,7 @@ if (
                     />
                   </View>
 
-                  {otherCategories.map(
+                 {filteredOtherCategories.map(
                     (
                       option,
                     ) => {
@@ -1951,6 +2035,26 @@ if (
                       );
                     },
                   )}
+                  {filteredFrequentlyUsedCategories.length === 0 &&
+  filteredOtherCategories.length === 0 && (
+    <View
+      style={styles.noCategoryResults}
+    >
+      <Ionicons
+        name="search-outline"
+        size={25}
+        color="#91A3B1"
+      />
+
+      <Text
+        style={styles.noCategoryResultsText}
+      >
+        No categories found
+      </Text>
+    </View>
+  )}
+
+                  
                 </>
               ) : (
                 selectorOptions.map(
@@ -3281,4 +3385,45 @@ attendeeTabTextActive: {
       color:
         '#FFFFFF',
     },
+
+
+    categorySearchContainer: {
+  height: 52,
+  marginBottom: 14,
+  paddingHorizontal: 13,
+
+  flexDirection: 'row',
+  alignItems: 'center',
+
+  gap: 9,
+
+  borderWidth: 1,
+  borderColor: '#D4E2EB',
+  borderRadius: 15,
+
+  backgroundColor: '#F7FAFC',
+},
+
+categorySearchInput: {
+  flex: 1,
+
+  fontSize: 13.5,
+
+  color: '#173F60',
+},
+
+noCategoryResults: {
+  paddingVertical: 30,
+
+  alignItems: 'center',
+  justifyContent: 'center',
+
+  gap: 8,
+},
+
+noCategoryResultsText: {
+  fontSize: 12.5,
+
+  color: '#8296A6',
+},
   });
