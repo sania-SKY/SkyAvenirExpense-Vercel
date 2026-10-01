@@ -23,7 +23,7 @@ export const BLURRY_RECEIPT_MESSAGE =
  * beds / keyboards.
  */
 const CENTER_LAPLACIAN_THRESHOLD =
-  200;
+  260;
 
 /*
  * If a light re-blur barely changes the score,
@@ -31,7 +31,15 @@ const CENTER_LAPLACIAN_THRESHOLD =
  * Clear text drops more after re-blur.
  */
 const REBLUR_RATIO_THRESHOLD =
-  0.82;
+  0.75;
+
+/*
+ * The re-blur check also runs on photos that
+ * look only "okay", not just those below the
+ * main cut.
+ */
+const REBLUR_SCORE_CAP =
+  380;
 
 export type BlurAssessment = {
   isBlurry:
@@ -308,7 +316,7 @@ function measureReceiptSharpness(
     centerScore <
       CENTER_LAPLACIAN_THRESHOLD ||
     (centerScore <
-      320 &&
+      REBLUR_SCORE_CAP &&
       reblurRatio >
         REBLUR_RATIO_THRESHOLD);
 

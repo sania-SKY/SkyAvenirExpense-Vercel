@@ -11,6 +11,8 @@ import {
   router,
 } from 'expo-router';
 
+import { Image as ExpoImage } from 'expo-image';
+
 import * as ImageManipulator from 'expo-image-manipulator';
 
 import * as ImagePicker from 'expo-image-picker';
@@ -46,15 +48,22 @@ export default function ReceiptPreviewScreen() {
     clearReceipt,
   } = useReceipt();
 
+  /*
+   * Result of loading ONE specific photo. It is only
+   * ever written when the image finishes or fails,
+   * never reset to "loading" by a restarted load, so
+   * the overlay and Continue cannot flicker on
+   * Android Chrome. A different photo (rotate, crop,
+   * replace) has a different uri, which naturally
+   * reads as "not loaded yet".
+   */
   const [
-    imageLoaded,
-    setImageLoaded,
-  ] = useState(false);
-
-  const [
-    imageError,
-    setImageError,
-  ] = useState(false);
+    imageResult,
+    setImageResult,
+  ] = useState<{
+    uri: string;
+    ok: boolean;
+  } | null>(null);
 
   const [
     isProcessing,
@@ -77,65 +86,45 @@ export default function ReceiptPreviewScreen() {
   const receiptUri =
     receipt?.uri ?? '';
 
-  /*
-   * These must stay stable. On web, Image restarts
-   * its load whenever onLoad / onLoadStart change
-   * identity, and that callback was aborting the
-   * in-flight decode on every render — the preview
-   * then sat on "Loading receipt..." and flickered.
-   */
-  const handleImageLoadStart =
-    useCallback(
-      () => {
-        setImageLoaded(
-          false,
-        );
+  const imageLoaded =
+    imageResult?.uri ===
+      receiptUri &&
+    imageResult.ok;
 
-        setImageError(
-          false,
-        );
-      },
-      [],
-    );
+  const imageError =
+    imageResult?.uri ===
+      receiptUri &&
+    !imageResult.ok;
 
   const handleImageLoad =
     useCallback(
       () => {
-        setImageLoaded(
-          true,
-        );
-
-        setImageError(
-          false,
-        );
+        setImageResult({
+          uri: receiptUri,
+          ok: true,
+        });
       },
-      [],
+      [receiptUri],
     );
 
   const handleImageError =
     useCallback(
       (
         event: {
-          nativeEvent: {
-            error?: string;
-          };
+          error?: string;
         },
       ) => {
         console.error(
           'Receipt image failed:',
-          event.nativeEvent
-            .error,
+          event?.error,
         );
 
-        setImageLoaded(
-          false,
-        );
-
-        setImageError(
-          true,
-        );
+        setImageResult({
+          uri: receiptUri,
+          ok: false,
+        });
       },
-      [],
+      [receiptUri],
     );
 
   /*
@@ -179,9 +168,6 @@ export default function ReceiptPreviewScreen() {
                 .JPEG,
           },
         );
-
-    setImageLoaded(false);
-    setImageError(false);
 
     updateReceiptUri(
       result.uri,
@@ -299,9 +285,6 @@ export default function ReceiptPreviewScreen() {
             },
           );
 
-      setImageLoaded(false);
-      setImageError(false);
-
       updateReceiptUri(
         result.uri,
       );
@@ -389,9 +372,6 @@ export default function ReceiptPreviewScreen() {
 
         return;
       }
-
-      setImageLoaded(false);
-      setImageError(false);
 
       setReceipt({
         uri:
@@ -483,7 +463,6 @@ export default function ReceiptPreviewScreen() {
   function continueToDetails() {
     if (
       !receiptUri ||
-      !imageLoaded ||
       imageError ||
       isProcessing
     ) {
@@ -656,7 +635,7 @@ export default function ReceiptPreviewScreen() {
             styles.receiptCard
           }
         >
-          <Image
+          <ExpoImage
             key={
               receiptUri
             }
@@ -667,11 +646,9 @@ export default function ReceiptPreviewScreen() {
             style={
               styles.receiptImage
             }
-            resizeMode="contain"
-
-            onLoadStart={
-              handleImageLoadStart
-            }
+            contentFit="contain"
+            transition={0}
+            cachePolicy="none"
             onLoad={
               handleImageLoad
             }
@@ -891,7 +868,6 @@ export default function ReceiptPreviewScreen() {
             continueToDetails
           }
           disabled={
-            !imageLoaded ||
             imageError ||
             isProcessing
           }
@@ -899,7 +875,6 @@ export default function ReceiptPreviewScreen() {
             styles.primaryButton,
 
             (
-              !imageLoaded ||
               imageError ||
               isProcessing
             ) &&
