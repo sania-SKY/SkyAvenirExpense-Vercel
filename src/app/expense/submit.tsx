@@ -745,6 +745,8 @@ if (
         '[Expense] Creating database record...',
         {
           receiptNeedsReview,
+          blurScore:
+            blurAssessment.score,
         },
       );
 

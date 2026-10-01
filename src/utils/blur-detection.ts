@@ -16,12 +16,22 @@ export const BLURRY_RECEIPT_MESSAGE =
   'This image is blurry. Please retake a clear photo of this receipt.';
 
 /*
- * Laplacian variance below this is treated as
- * blurry. Tuned for typical phone receipt photos
- * after downscaling to ~320px on the long edge.
+ * Center-crop Laplacian variance below this is
+ * treated as soft. Receipts keep text contrast
+ * even when soft, so the old full-frame 110 cut
+ * often missed blurry tickets while flagging
+ * beds / keyboards.
  */
-const BLUR_VARIANCE_THRESHOLD =
-  110;
+const CENTER_LAPLACIAN_THRESHOLD =
+  200;
+
+/*
+ * If a light re-blur barely changes the score,
+ * the photo was already soft (ratio near 1).
+ * Clear text drops more after re-blur.
+ */
+const REBLUR_RATIO_THRESHOLD =
+  0.82;
 
 export type BlurAssessment = {
   isBlurry:
@@ -37,9 +47,10 @@ export type BlurAssessment = {
  * ------------------------------------------------
  *
  * Web-only: loads the image into a canvas and
- * measures Laplacian variance (higher = sharper).
- * On native we skip detection and treat the image
- * as sharp so capture is never blocked offline.
+ * measures center-region sharpness (higher =
+ * sharper). On native we skip detection and
+ * treat the image as sharp so capture is never
+ * blocked offline.
  * ------------------------------------------------
  */
 export async function assessReceiptBlur(
@@ -78,18 +89,12 @@ export async function assessReceiptBlur(
         imageUri,
       );
 
-    const score =
-      computeLaplacianVariance(
+    const assessment =
+      measureReceiptSharpness(
         image,
       );
 
-    return {
-      isBlurry:
-        score <
-        BLUR_VARIANCE_THRESHOLD,
-
-      score,
-    };
+    return assessment;
   } catch (error) {
     console.error(
       'Receipt blur assessment failed:',
@@ -145,12 +150,12 @@ function loadHtmlImage(
   );
 }
 
-function computeLaplacianVariance(
+function measureReceiptSharpness(
   image:
     HTMLImageElement,
-): number {
+): BlurAssessment {
   const maxEdge =
-    320;
+    360;
 
   const scale =
     Math.min(
@@ -201,7 +206,13 @@ function computeLaplacianVariance(
     );
 
   if (!context) {
-    return Number.POSITIVE_INFINITY;
+    return {
+      isBlurry:
+        false,
+
+      score:
+        Number.POSITIVE_INFINITY,
+    };
   }
 
   context.drawImage(
@@ -222,6 +233,101 @@ function computeLaplacianVariance(
       height,
     );
 
+  const gray =
+    toGrayscale(
+      data,
+      width,
+      height,
+    );
+
+  /*
+   * Focus on the middle of the frame where
+   * receipt text usually sits. Outer edges
+   * (hands, table, paper border) inflate
+   * sharpness and hide soft text.
+   */
+  const insetX =
+    Math.floor(
+      width * 0.18,
+    );
+
+  const insetY =
+    Math.floor(
+      height * 0.16,
+    );
+
+  const centerScore =
+    laplacianVariance(
+      gray,
+      width,
+      height,
+      insetX,
+      insetY,
+      width -
+        insetX,
+      height -
+        insetY,
+    );
+
+  const blurredGray =
+    boxBlur3x3(
+      gray,
+      width,
+      height,
+    );
+
+  const reblurScore =
+    laplacianVariance(
+      blurredGray,
+      width,
+      height,
+      insetX,
+      insetY,
+      width -
+        insetX,
+      height -
+        insetY,
+    );
+
+  const reblurRatio =
+    centerScore <=
+    0
+      ? 1
+      : reblurScore /
+        centerScore;
+
+  /*
+   * Soft receipts often still clear the old
+   * full-frame cut because text contrast stays
+   * high. Flag when:
+   * - center text region is soft, or
+   * - score is only "okay" but a re-blur barely
+   *   changes it (already soft).
+   */
+  const isBlurry =
+    centerScore <
+      CENTER_LAPLACIAN_THRESHOLD ||
+    (centerScore <
+      320 &&
+      reblurRatio >
+        REBLUR_RATIO_THRESHOLD);
+
+  return {
+    isBlurry,
+
+    score:
+      centerScore,
+  };
+}
+
+function toGrayscale(
+  data:
+    Uint8ClampedArray,
+  width:
+    number,
+  height:
+    number,
+): Float32Array {
   const gray =
     new Float32Array(
       width *
@@ -257,6 +363,153 @@ function computeLaplacianVariance(
         ];
   }
 
+  return gray;
+}
+
+function boxBlur3x3(
+  source:
+    Float32Array,
+  width:
+    number,
+  height:
+    number,
+): Float32Array {
+  const output =
+    new Float32Array(
+      source.length,
+    );
+
+  for (
+    let y =
+      0;
+    y <
+    height;
+    y +=
+      1
+  ) {
+    for (
+      let x =
+        0;
+      x <
+      width;
+      x +=
+        1
+    ) {
+      let sum =
+        0;
+
+      let count =
+        0;
+
+      for (
+        let dy =
+          -1;
+        dy <=
+        1;
+        dy +=
+          1
+      ) {
+        const yy =
+          y +
+          dy;
+
+        if (
+          yy <
+            0 ||
+          yy >=
+            height
+        ) {
+          continue;
+        }
+
+        for (
+          let dx =
+            -1;
+          dx <=
+          1;
+          dx +=
+            1
+        ) {
+          const xx =
+            x +
+            dx;
+
+          if (
+            xx <
+              0 ||
+            xx >=
+              width
+          ) {
+            continue;
+          }
+
+          sum +=
+            source[
+              yy *
+                width +
+                xx
+            ];
+
+          count +=
+            1;
+        }
+      }
+
+      output[
+        y *
+          width +
+          x
+      ] =
+        sum /
+        count;
+    }
+  }
+
+  return output;
+}
+
+function laplacianVariance(
+  gray:
+    Float32Array,
+  width:
+    number,
+  height:
+    number,
+  left:
+    number,
+  top:
+    number,
+  right:
+    number,
+  bottom:
+    number,
+): number {
+  const startX =
+    Math.max(
+      1,
+      left,
+    );
+
+  const startY =
+    Math.max(
+      1,
+      top,
+    );
+
+  const endX =
+    Math.min(
+      width -
+        1,
+      right,
+    );
+
+  const endY =
+    Math.min(
+      height -
+        1,
+      bottom,
+    );
+
   let sum =
     0;
 
@@ -268,19 +521,17 @@ function computeLaplacianVariance(
 
   for (
     let y =
-      1;
+      startY;
     y <
-    height -
-      1;
+    endY;
     y +=
       1
   ) {
     for (
       let x =
-        1;
+        startX;
       x <
-      width -
-        1;
+      endX;
       x +=
         1
     ) {

@@ -1,5 +1,6 @@
 import {
   useCallback,
+  useEffect,
   useRef,
   useState,
 } from 'react';
@@ -32,6 +33,10 @@ import {
 
 import { useReceipt } from '../../context/ReceiptContext';
 
+const isWeb =
+  Platform.OS ===
+  'web';
+
 /*
  * ------------------------------------------------
  * RELEASE WEB CAMERA
@@ -47,10 +52,7 @@ import { useReceipt } from '../../context/ReceiptContext';
  * ------------------------------------------------
  */
 function releaseWebCameraStreams() {
-  if (
-    Platform.OS !==
-    'web'
-  ) {
+  if (!isWeb) {
     return;
   }
 
@@ -126,6 +128,13 @@ export default function CaptureReceiptScreen() {
   const [cameraActive, setCameraActive] =
     useState(true);
 
+  /*
+   * On web (esp. Android Chrome), brief focus/blur
+   * flickers remount CameraView and restart
+   * getUserMedia — that looks like blinking.
+   * Keep the preview mounted until we leave on
+   * purpose; only native uses focus teardown.
+   */
   useFocusEffect(
     useCallback(
       () => {
@@ -134,6 +143,12 @@ export default function CaptureReceiptScreen() {
         );
 
         return () => {
+          if (
+            isWeb
+          ) {
+            return;
+          }
+
           setCameraActive(
             false,
           );
@@ -141,15 +156,24 @@ export default function CaptureReceiptScreen() {
           setCameraReady(
             false,
           );
-
-          releaseWebCameraStreams();
         };
       },
       [],
     ),
   );
 
-  async function leaveCaptureForPreview() {
+  useEffect(
+    () => {
+      return () => {
+        releaseWebCameraStreams();
+      };
+    },
+    [],
+  );
+
+  async function stopCameraAndLeave(
+    next: () => void,
+  ) {
     setCameraActive(
       false,
     );
@@ -163,9 +187,9 @@ export default function CaptureReceiptScreen() {
     /*
      * Let React unmount CameraView before we
      * navigate, so the stream stops immediately.
-     * replace (not push) removes this screen from
-     * the stack so it cannot keep the camera open
-     * underneath preview.
+     * Web needs a short beat so Chrome finishes
+     * tearing down getUserMedia without a flash
+     * loop on the next screen.
      */
     await new Promise<void>(
       (
@@ -173,13 +197,23 @@ export default function CaptureReceiptScreen() {
       ) => {
         setTimeout(
           resolve,
-          0,
+          isWeb
+            ? 80
+            : 0,
         );
       },
     );
 
-    router.replace(
-      '/expense/preview',
+    next();
+  }
+
+  async function leaveCaptureForPreview() {
+    await stopCameraAndLeave(
+      () => {
+        router.replace(
+          '/expense/preview',
+        );
+      },
     );
   }
 
@@ -323,6 +357,10 @@ export default function CaptureReceiptScreen() {
   }
 
   function toggleFlash() {
+    if (isWeb) {
+      return;
+    }
+
     setFlash((current) =>
       current === 'off'
         ? 'on'
@@ -331,10 +369,18 @@ export default function CaptureReceiptScreen() {
   }
 
   function flipCamera() {
+    if (isWeb) {
+      return;
+    }
+
     setFacing((current) =>
       current === 'back'
         ? 'front'
         : 'back',
+    );
+
+    setCameraReady(
+      false,
     );
   }
 
@@ -349,7 +395,14 @@ export default function CaptureReceiptScreen() {
           ref={cameraRef}
           style={StyleSheet.absoluteFill}
           facing={facing}
-          flash={flash}
+          flash={
+            isWeb
+              ? 'off'
+              : flash
+          }
+          animateShutter={
+            !isWeb
+          }
           onCameraReady={() =>
             setCameraReady(true)
           }
@@ -369,17 +422,11 @@ export default function CaptureReceiptScreen() {
       <View style={styles.header}>
         <Pressable
           onPress={() => {
-            setCameraActive(
-              false,
+            void stopCameraAndLeave(
+              () => {
+                router.back();
+              },
             );
-
-            setCameraReady(
-              false,
-            );
-
-            releaseWebCameraStreams();
-
-            router.back();
           }}
           style={styles.headerButton}
         >
@@ -400,24 +447,32 @@ export default function CaptureReceiptScreen() {
           </Text>
         </View>
 
-        <Pressable
-          onPress={toggleFlash}
-          style={[
-            styles.headerButton,
-            flash === 'on' &&
-              styles.headerButtonActive,
-          ]}
-        >
-          <Ionicons
-            name={
-              flash === 'on'
-                ? 'flash'
-                : 'flash-off'
+        {isWeb ? (
+          <View
+            style={
+              styles.headerSpacer
             }
-            size={23}
-            color="#FFFFFF"
           />
-        </Pressable>
+        ) : (
+          <Pressable
+            onPress={toggleFlash}
+            style={[
+              styles.headerButton,
+              flash === 'on' &&
+                styles.headerButtonActive,
+            ]}
+          >
+            <Ionicons
+              name={
+                flash === 'on'
+                  ? 'flash'
+                  : 'flash-off'
+              }
+              size={23}
+              color="#FFFFFF"
+            />
+          </Pressable>
+        )}
       </View>
 
       <View
@@ -494,7 +549,12 @@ export default function CaptureReceiptScreen() {
 
         <Pressable
           onPress={flipCamera}
-          style={styles.sideControl}
+          disabled={isWeb}
+          style={[
+            styles.sideControl,
+            isWeb &&
+              styles.sideControlHidden,
+          ]}
         >
           <View style={styles.sideControlCircle}>
             <Ionicons
@@ -616,6 +676,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: 'rgba(0,0,0,0.28)',
   },
+  headerSpacer: {
+    width: 45,
+    height: 45,
+  },
   headerButtonActive: {
     backgroundColor: 'rgba(211, 164, 61, 0.82)',
   },
@@ -729,6 +793,9 @@ const styles = StyleSheet.create({
   sideControl: {
     width: 72,
     alignItems: 'center',
+  },
+  sideControlHidden: {
+    opacity: 0,
   },
   sideControlCircle: {
     width: 49,
