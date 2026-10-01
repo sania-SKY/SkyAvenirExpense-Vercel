@@ -1,17 +1,33 @@
 diff --git a/node_modules/expo-camera/build/web/WebCameraUtils.js b/node_modules/expo-camera/build/web/WebCameraUtils.js
-index 9fc05b8..18c4671 100644
+index 9fc05b8..01c9494 100644
 --- a/node_modules/expo-camera/build/web/WebCameraUtils.js
 +++ b/node_modules/expo-camera/build/web/WebCameraUtils.js
-@@ -125,7 +125,44 @@ export async function getPreferredStreamDevice(preferredCameraType, preferredWid
+@@ -125,7 +125,60 @@ export async function getPreferredStreamDevice(preferredCameraType, preferredWid
  }
  export async function getStreamDevice(preferredCameraType, preferredWidth, preferredHeight) {
      const constraints = getIdealConstraints(preferredCameraType, preferredWidth, preferredHeight);
 -    return requestUserMediaAsync(constraints);
 +    const stream = await requestUserMediaAsync(constraints);
-+    if (preferredCameraType === 'back' && isWebKit()) {
++    if (preferredCameraType === 'back' && isIosWebKit()) {
 +        await forceStandardBackLensZoom(stream);
 +    }
 +    return stream;
++}
++// PATCH (sky-avenir-expense, via patch-package):
++// isWebKit() also matches Android Chrome, where applying a zoom constraint
++// restarts the preview stream and makes it flicker. The unified multi-lens
++// behaviour this works around is iOS-only, so scope it to iOS Safari.
++function isIosWebKit() {
++    if (typeof navigator === 'undefined') {
++        return false;
++    }
++    const ua = navigator.userAgent;
++    if (/Android/.test(ua)) {
++        return false;
++    }
++    const isIosDevice = /iPad|iPhone|iPod/.test(ua) ||
++        (/Macintosh/.test(ua) && (navigator.maxTouchPoints ?? 0) > 1);
++    return isIosDevice && isWebKit();
 +}
 +// PATCH (sky-avenir-expense, via patch-package):
 +// On iPhones with multiple rear lenses, Safari can expose the ultra-wide,
@@ -48,3 +64,71 @@ index 9fc05b8..18c4671 100644
  }
  export function isWebKit() {
      return /WebKit/.test(navigator.userAgent) && !/Edg/.test(navigator.userAgent);
+@@ -202,8 +255,22 @@ async function onCapabilitiesReady(cameraType, track, settings = {}) {
+     if (capabilities.whiteBalanceMode && settings.whiteBalance !== undefined) {
+         constraints.whiteBalanceMode = validatedInternalConstrainedValue('whiteBalanceMode', 'whiteBalance', CapabilityUtils.convertWhiteBalanceJSONToNative);
+     }
++    // PATCH (sky-avenir-expense, via patch-package):
++    // Reconfiguring a track that already matches these values makes some
++    // browsers restart the preview, which looks like flickering. Only send
++    // constraints that actually differ from the current track settings.
++    const currentSettings = typeof track.getSettings === 'function' ? track.getSettings() : {};
++    const changedConstraints = {};
++    for (const [key, value] of Object.entries(constraints)) {
++        if (value !== undefined && value !== currentSettings[key]) {
++            changedConstraints[key] = value;
++        }
++    }
++    if (!Object.keys(changedConstraints).length) {
++        return;
++    }
+     try {
+-        await track.applyConstraints({ advanced: [constraints] });
++        await track.applyConstraints({ advanced: [changedConstraints] });
+     }
+     catch (error) {
+         if (__DEV__)
+diff --git a/node_modules/expo-camera/build/web/useWebCameraStream.js b/node_modules/expo-camera/build/web/useWebCameraStream.js
+index d54b864..8ef24c9 100644
+--- a/node_modules/expo-camera/build/web/useWebCameraStream.js
++++ b/node_modules/expo-camera/build/web/useWebCameraStream.js
+@@ -17,17 +17,30 @@ const VALID_SETTINGS_KEYS = [
+     'zoom',
+ ];
+ function useLoadedVideo(video, onLoaded) {
++    const onLoadedRef = React.useRef(onLoaded);
++    onLoadedRef.current = onLoaded;
+     React.useEffect(() => {
+-        if (video) {
+-            video.addEventListener('loadedmetadata', () => {
+-                // without this async block the constraints aren't properly applied to the camera,
+-                // this means that if you were to turn on the torch and swap to the front camera,
+-                // then swap back to the rear camera the torch setting wouldn't be applied.
+-                requestAnimationFrame(() => {
+-                    onLoaded();
+-                });
+-            });
++        if (!video) {
++            return;
+         }
++        // PATCH (sky-avenir-expense, via patch-package):
++        // Syncing capabilities calls applyConstraints, which makes some
++        // browsers (notably Android Chrome) re-emit loadedmetadata. With a
++        // permanent listener that becomes a sync/reconfigure loop and the
++        // preview flickers constantly, so only sync once per video element
++        // and detach the listener on cleanup.
++        const handleLoadedMetadata = () => {
++            // without this async block the constraints aren't properly applied to the camera,
++            // this means that if you were to turn on the torch and swap to the front camera,
++            // then swap back to the rear camera the torch setting wouldn't be applied.
++            requestAnimationFrame(() => {
++                onLoadedRef.current();
++            });
++        };
++        video.addEventListener('loadedmetadata', handleLoadedMetadata, { once: true });
++        return () => {
++            video.removeEventListener('loadedmetadata', handleLoadedMetadata);
++        };
+     }, [video]);
+ }
+ export function useWebCameraStream(video, preferredType, settings, { onCameraReady, onMountError, }) {
