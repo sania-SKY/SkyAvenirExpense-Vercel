@@ -288,6 +288,18 @@ export default function CaptureReceiptScreen() {
         await cameraRef.current.takePictureAsync({
           quality: 0.9,
           skipProcessing: false,
+          /*
+           * Web defaults to PNG, which turns a
+           * camera frame into a huge data URL.
+           * Android Chrome then stalls decoding
+           * it on the review screen.
+           */
+          ...(isWeb
+            ? {
+                imageType:
+                  'jpg' as const,
+              }
+            : {}),
         });
 
       if (!photo?.uri) {

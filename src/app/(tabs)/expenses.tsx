@@ -28,6 +28,10 @@ import {
   getCurrentUser,
 } from '../../../services/auth';
 
+import {
+  useReceipt,
+} from '../../context/ReceiptContext';
+
 type ExpenseStatus =
   | 'SUBMITTED'
   | 'PROCESSING'
@@ -92,6 +96,22 @@ export default function ExpensesScreen() {
     : params.filter === 'needs-review'
       ? 'needs-review'
       : 'all';
+
+  const {
+    beginNewExpense,
+  } = useReceipt();
+
+  /*
+   * Capturing from the list always starts a fresh
+   * expense, never a pending blurry retake.
+   */
+  function startExpenseCapture() {
+    beginNewExpense();
+
+    router.push(
+      '/expense/capture',
+    );
+  }
 
   const [
     expenses,
@@ -293,10 +313,8 @@ const visibleExpenses =
         </View>
 
         <Pressable
-          onPress={() =>
-            router.push(
-              '/expense/capture',
-            )
+          onPress={
+            startExpenseCapture
           }
           style={
             styles.addButton
@@ -422,10 +440,8 @@ const visibleExpenses =
           </Text>
 
           <Pressable
-            onPress={() =>
-              router.push(
-                '/expense/capture',
-              )
+            onPress={
+              startExpenseCapture
             }
             style={
               styles.captureButton

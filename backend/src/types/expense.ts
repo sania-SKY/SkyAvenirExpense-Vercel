@@ -37,6 +37,34 @@ export type CreateExpenseInput = {
     string | null;
 };
 
+export type ReplaceReceiptInput = {
+  receiptStorageKey: string;
+
+  /*
+   * Optional edits made on the submit screen while
+   * retaking. Omitted fields keep their stored
+   * values.
+   */
+  category?: string;
+
+  businessPurpose?: string;
+
+  comments?: string | null;
+
+  attendees?: ExpenseAttendeeInput[];
+
+  /*
+   * A retaken photo that is still blurry keeps the
+   * expense in Needs Review; a clear one sends it
+   * back to Submitted and queues the integration.
+   */
+  receiptNeedsReview?:
+    boolean;
+
+  reviewReason?:
+    string | null;
+};
+
 export type ExpenseRecord = {
   id: string;
 

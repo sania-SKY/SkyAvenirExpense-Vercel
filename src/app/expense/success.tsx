@@ -12,16 +12,16 @@ import {
 import { useReceipt } from '../../context/ReceiptContext';
 
 export default function ExpenseSuccessScreen() {
-  const { clearReceipt } = useReceipt();
+  const { beginNewExpense } = useReceipt();
 
   function handleBackHome() {
-    clearReceipt();
+    beginNewExpense();
 
     router.replace('/(tabs)/home');
   }
 
   function handleAnotherReceipt() {
-    clearReceipt();
+    beginNewExpense();
 
     router.replace('/expense/capture');
   }

@@ -24,10 +24,12 @@ import {
   createExpense,
   getExpenseById,
   getMyExpenses,
+  replaceExpenseReceipt,
 } from '../services/expenseService.js';
 
 import {
   createExpenseSchema,
+  replaceReceiptSchema,
 } from '../validation/expense.js';
 
 const router =
@@ -349,6 +351,164 @@ router.post(
         .json({
           message:
             'Unable to create expense.',
+        });
+    }
+  },
+);
+
+/*
+ * ------------------------------------------------
+ * PATCH /api/expenses/:id/receipt
+ * ------------------------------------------------
+ *
+ * Retake flow: swap the image on an expense that
+ * was flagged for review and recompute its status.
+ */
+
+router.patch(
+  '/:id/receipt',
+  requireAuth,
+
+  async (
+    req,
+    res,
+  ) => {
+    try {
+      if (
+        !req.user
+      ) {
+        res
+          .status(401)
+          .json({
+            message:
+              'Authentication required.',
+          });
+
+        return;
+      }
+
+      const parsed =
+        replaceReceiptSchema.safeParse(
+          req.body,
+        );
+
+      if (
+        !parsed.success
+      ) {
+        res
+          .status(400)
+          .json({
+            message:
+              'Invalid receipt update.',
+
+            errors:
+              parsed.error.flatten(),
+          });
+
+        return;
+      }
+
+      const attendees =
+        parsed.data.attendees
+          ?.map(
+            (
+              attendee,
+            ) => ({
+              name:
+                attendee.name.trim(),
+
+              attendeeType:
+                attendee.attendeeType,
+            }),
+          )
+          .filter(
+            (
+              attendee,
+            ) =>
+              attendee.name.length >
+              0,
+          );
+
+      const expenseId =
+        Array.isArray(
+          req.params.id,
+        )
+          ? req.params.id[0]
+          : req.params.id;
+
+      if (
+        !expenseId
+      ) {
+        res
+          .status(400)
+          .json({
+            message:
+              'Expense id is required.',
+          });
+
+        return;
+      }
+
+      const expense =
+        await replaceExpenseReceipt(
+          req.user,
+          expenseId,
+          {
+            receiptStorageKey:
+              parsed.data
+                .receiptStorageKey,
+
+            category:
+              parsed.data.category,
+
+            businessPurpose:
+              parsed.data
+                .businessPurpose,
+
+            comments:
+              parsed.data.comments ===
+              undefined
+                ? undefined
+                : parsed.data.comments ||
+                  null,
+
+            attendees,
+
+            receiptNeedsReview:
+              parsed.data
+                .receiptNeedsReview,
+
+            reviewReason:
+              parsed.data.reviewReason ||
+              null,
+          },
+        );
+
+      if (!expense) {
+        res
+          .status(404)
+          .json({
+            message:
+              'Expense not found.',
+          });
+
+        return;
+      }
+
+      res.json({
+        expense,
+      });
+    } catch (error) {
+      console.error(
+        'Replace receipt error:',
+        error,
+      );
+
+      res
+        .status(500)
+        .json({
+          message:
+            'Unable to update receipt.',
         });
     }
   },

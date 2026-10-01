@@ -117,13 +117,17 @@ const API_BASE_URL =
 export default function SubmitExpenseScreen() {
   const {
     receipt,
-    clearReceipt,
+    retakeTarget,
+    beginNewExpense,
   } = useReceipt();
 
   const [
     category,
     setCategory,
-  ] = useState('');
+  ] = useState(
+    retakeTarget?.category ??
+      '',
+  );
 
   const [
   categorySearch,
@@ -135,12 +139,18 @@ export default function SubmitExpenseScreen() {
   const [
     businessPurpose,
     setBusinessPurpose,
-  ] = useState('');
+  ] = useState(
+    retakeTarget?.businessPurpose ??
+      '',
+  );
 
   const [
     comments,
     setComments,
-  ] = useState('');
+  ] = useState(
+    retakeTarget?.comments ??
+      '',
+  );
 
  type AttendeeType =
   | 'WAVETRONIX_EMPLOYEE'
@@ -159,12 +169,39 @@ const [
     'WAVETRONIX_EMPLOYEE',
   );
 
+/*
+ * A retake keeps everything the employee already
+ * entered; only the photo is replaced.
+ */
+function initialAttendeeNames(
+  type: AttendeeType,
+) {
+  const names =
+    (retakeTarget?.attendees ?? [])
+      .filter(
+        (attendee) =>
+          attendee.attendeeType ===
+          type,
+      )
+      .map(
+        (attendee) =>
+          attendee.name,
+      );
+
+  return names.length
+    ? names
+    : [''];
+}
+
 const [
   wavetronixAttendees,
   setWavetronixAttendees,
 ] =
   useState<string[]>(
-    [''],
+    () =>
+      initialAttendeeNames(
+        'WAVETRONIX_EMPLOYEE',
+      ),
   );
 
 const [
@@ -180,7 +217,10 @@ const [
   setNonWavetronixAttendees,
 ] =
   useState<string[]>(
-    [''],
+    () =>
+      initialAttendeeNames(
+        'NON_WAVETRONIX',
+      ),
   );
 
   const [
@@ -778,46 +818,88 @@ if (
         blurAssessment.isBlurry;
 
       console.log(
-        '[Expense] Creating database record...',
+        retakeTarget
+          ? '[Expense] Updating receipt on existing expense...'
+          : '[Expense] Creating database record...',
         {
           receiptNeedsReview,
           blurScore:
             blurAssessment.score,
+          expenseId:
+            retakeTarget?.expenseId,
         },
       );
 
+      /*
+       * A retake replaces the image on the expense
+       * that was flagged for review, so the details
+       * already captured are kept and the status
+       * flips back to Submitted once it is clear.
+       */
       const response =
-        await authenticatedFetch(
-          '/api/expenses',
-          {
-            method:
-              'POST',
+        retakeTarget
+          ? await authenticatedFetch(
+              `/api/expenses/${retakeTarget.expenseId}/receipt`,
+              {
+                method:
+                  'PATCH',
 
-            body:
-              JSON.stringify({
-                category,
+                body:
+                  JSON.stringify({
+                    receiptStorageKey,
 
-                businessPurpose,
+                    category,
 
-                comments:
-                  comments
-                    .trim() ||
-                  null,
+                    businessPurpose,
 
-                receiptStorageKey,
+                    comments:
+                      comments
+                        .trim() ||
+                      null,
 
-                attendees:
-                  cleanedAttendees,
+                    attendees:
+                      cleanedAttendees,
 
-                receiptNeedsReview,
+                    receiptNeedsReview,
 
-                reviewReason:
-                  receiptNeedsReview
-                    ? BLURRY_RECEIPT_MESSAGE
-                    : null,
-              }),
-          },
-        );
+                    reviewReason:
+                      receiptNeedsReview
+                        ? BLURRY_RECEIPT_MESSAGE
+                        : null,
+                  }),
+              },
+            )
+          : await authenticatedFetch(
+              '/api/expenses',
+              {
+                method:
+                  'POST',
+
+                body:
+                  JSON.stringify({
+                    category,
+
+                    businessPurpose,
+
+                    comments:
+                      comments
+                        .trim() ||
+                      null,
+
+                    receiptStorageKey,
+
+                    attendees:
+                      cleanedAttendees,
+
+                    receiptNeedsReview,
+
+                    reviewReason:
+                      receiptNeedsReview
+                        ? BLURRY_RECEIPT_MESSAGE
+                        : null,
+                  }),
+              },
+            );
 
       let data:
         ExpenseResponse;
@@ -850,7 +932,9 @@ if (
 
         throw new Error(
           data.message ??
-            `Unable to create expense (${response.status}).`,
+            (retakeTarget
+              ? `Unable to update receipt (${response.status}).`
+              : `Unable to create expense (${response.status}).`),
         );
       }
 
@@ -887,7 +971,7 @@ if (
        * ------------------------------------------------
        */
 
-      clearReceipt();
+      beginNewExpense();
 
       /*
        * ------------------------------------------------

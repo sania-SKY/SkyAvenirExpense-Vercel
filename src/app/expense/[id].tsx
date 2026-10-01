@@ -34,6 +34,10 @@ import {
     useReceipt,
 } from '../../context/ReceiptContext';
 
+import type {
+    AttendeeType,
+} from '../../context/ReceiptContext';
+
 import {
     BLURRY_RECEIPT_MESSAGE,
     isBlurryReceiptError,
@@ -78,11 +82,17 @@ type Expense = {
 
   attendees:
     string[];
+
+  attendee_details?:
+    {
+      name: string;
+      attendeeType: AttendeeType;
+    }[];
 };
 
 export default function ExpenseDetailsScreen() {
   const {
-    clearReceipt,
+    startRetake,
   } = useReceipt();
 
   const params =
@@ -595,7 +605,31 @@ export default function ExpenseDetailsScreen() {
 
             <Pressable
               onPress={() => {
-                clearReceipt();
+                startRetake({
+                  expenseId:
+                    expense.id,
+
+                  category:
+                    expense.category,
+
+                  businessPurpose:
+                    expense.business_purpose,
+
+                  comments:
+                    expense.comments ??
+                    '',
+
+                  attendees:
+                    expense.attendee_details ??
+                    expense.attendees.map(
+                      (name) => ({
+                        name,
+
+                        attendeeType:
+                          'WAVETRONIX_EMPLOYEE' as const,
+                      }),
+                    ),
+                });
 
                 router.replace(
                   '/expense/capture',

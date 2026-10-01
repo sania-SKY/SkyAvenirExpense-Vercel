@@ -34,6 +34,10 @@ import {
 } from '../../context/AuthContext';
 
 import {
+  useReceipt,
+} from '../../context/ReceiptContext';
+
+import {
   confirmAction,
 } from '../../utils/confirm';
 
@@ -97,6 +101,22 @@ export default function HomeScreen() {
     status,
     signOutUser,
   } = useAuth();
+
+  const {
+    beginNewExpense,
+  } = useReceipt();
+
+  /*
+   * Capturing from Home always starts a fresh
+   * expense, never a pending blurry retake.
+   */
+  function startExpenseCapture() {
+    beginNewExpense();
+
+    router.push(
+      '/expense/capture',
+    );
+  }
 
   /*
    * ------------------------------------------------
@@ -444,10 +464,8 @@ const review =
         {/* CAPTURE RECEIPT */}
 
         <Pressable
-          onPress={() =>
-            router.push(
-              '/expense/capture',
-            )
+          onPress={
+            startExpenseCapture
           }
           style={({
             pressed,
@@ -763,10 +781,8 @@ const review =
         </Pressable>
 
         <Pressable
-          onPress={() =>
-            router.push(
-              '/expense/capture',
-            )
+          onPress={
+            startExpenseCapture
           }
           style={
             styles.mainCameraButton

@@ -18,6 +18,32 @@ export type ReceiptState = {
   isBlurry: boolean;
 };
 
+export type AttendeeType =
+  | 'WAVETRONIX_EMPLOYEE'
+  | 'NON_WAVETRONIX';
+
+/*
+ * Set when an employee retakes a receipt that was
+ * flagged for review. It carries the details they
+ * already filled in so the submit screen can
+ * restore them and update the same expense
+ * instead of creating a new one.
+ */
+export type RetakeTarget = {
+  expenseId: string;
+
+  category: string;
+
+  businessPurpose: string;
+
+  comments: string;
+
+  attendees: {
+    name: string;
+    attendeeType: AttendeeType;
+  }[];
+};
+
 type ReceiptContextValue = {
   receipt: ReceiptState | null;
 
@@ -36,6 +62,14 @@ type ReceiptContextValue = {
   ) => void;
 
   clearReceipt: () => void;
+
+  retakeTarget: RetakeTarget | null;
+
+  startRetake: (
+    target: RetakeTarget,
+  ) => void;
+
+  beginNewExpense: () => void;
 };
 
 const ReceiptContext =
@@ -48,6 +82,11 @@ export function ReceiptProvider({
 }: PropsWithChildren) {
   const [receipt, setReceiptState] =
     useState<ReceiptState | null>(
+      null,
+    );
+
+  const [retakeTarget, setRetakeTarget] =
+    useState<RetakeTarget | null>(
       null,
     );
 
@@ -114,6 +153,22 @@ export function ReceiptProvider({
     setReceiptState(null);
   }
 
+  function startRetake(
+    target: RetakeTarget,
+  ) {
+    setReceiptState(null);
+    setRetakeTarget(target);
+  }
+
+  /*
+   * Capturing a brand new expense must never
+   * inherit a pending retake.
+   */
+  function beginNewExpense() {
+    setReceiptState(null);
+    setRetakeTarget(null);
+  }
+
   return (
     <ReceiptContext.Provider
       value={{
@@ -122,6 +177,9 @@ export function ReceiptProvider({
         updateReceiptUri,
         setReceiptBlurry,
         clearReceipt,
+        retakeTarget,
+        startRetake,
+        beginNewExpense,
       }}
     >
       {children}

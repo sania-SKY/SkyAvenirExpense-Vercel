@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useState,
 } from 'react';
 
@@ -75,6 +76,67 @@ export default function ReceiptPreviewScreen() {
 
   const receiptUri =
     receipt?.uri ?? '';
+
+  /*
+   * These must stay stable. On web, Image restarts
+   * its load whenever onLoad / onLoadStart change
+   * identity, and that callback was aborting the
+   * in-flight decode on every render — the preview
+   * then sat on "Loading receipt..." and flickered.
+   */
+  const handleImageLoadStart =
+    useCallback(
+      () => {
+        setImageLoaded(
+          false,
+        );
+
+        setImageError(
+          false,
+        );
+      },
+      [],
+    );
+
+  const handleImageLoad =
+    useCallback(
+      () => {
+        setImageLoaded(
+          true,
+        );
+
+        setImageError(
+          false,
+        );
+      },
+      [],
+    );
+
+  const handleImageError =
+    useCallback(
+      (
+        event: {
+          nativeEvent: {
+            error?: string;
+          };
+        },
+      ) => {
+        console.error(
+          'Receipt image failed:',
+          event.nativeEvent
+            .error,
+        );
+
+        setImageLoaded(
+          false,
+        );
+
+        setImageError(
+          true,
+        );
+      },
+      [],
+    );
 
   /*
    * ------------------------------------------------
@@ -607,43 +669,15 @@ export default function ReceiptPreviewScreen() {
             }
             resizeMode="contain"
 
-            onLoadStart={() => {
-              setImageLoaded(
-                false,
-              );
-
-              setImageError(
-                false,
-              );
-            }}
-
-            onLoad={() => {
-              setImageLoaded(
-                true,
-              );
-
-              setImageError(
-                false,
-              );
-            }}
-
-            onError={(
-              event,
-            ) => {
-              console.error(
-                'Receipt image failed:',
-                event.nativeEvent
-                  .error,
-              );
-
-              setImageLoaded(
-                false,
-              );
-
-              setImageError(
-                true,
-              );
-            }}
+            onLoadStart={
+              handleImageLoadStart
+            }
+            onLoad={
+              handleImageLoad
+            }
+            onError={
+              handleImageError
+            }
           />
 
           {!imageLoaded &&
