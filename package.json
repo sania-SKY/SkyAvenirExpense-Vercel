@@ -7,7 +7,7 @@
     "@expo/vector-icons": "^15.0.2",
     "@react-native-google-signin/google-signin": "^16.1.5",
     "expo": "~57.0.24",
-    "expo-camera": "~57.0.5",
+    "expo-camera": "57.0.5",
     "expo-constants": "~57.0.19",
     "expo-dev-client": "~57.0.19",
     "expo-device": "~57.0.2",
@@ -42,8 +42,6 @@
     "@types/react": "~19.2.2",
     "eslint": "^9.0.0",
     "eslint-config-expo": "~57.0.2",
-    "patch-package": "^8.0.1",
-    "postinstall-postinstall": "^2.1.0",
     "typescript": "~6.0.3"
   },
   "scripts": {
@@ -54,7 +52,7 @@
     "web": "expo start --web",
     "build:web": "expo export -p web",
     "lint": "expo lint",
-    "postinstall": "patch-package"
+    "postinstall": "node ./scripts/apply-expo-camera-web-fix.js"
   },
   "private": true
 }
