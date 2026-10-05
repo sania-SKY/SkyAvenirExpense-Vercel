@@ -37,6 +37,10 @@ CREATE TABLE IF NOT EXISTS users (
 ALTER TABLE users
 ADD COLUMN IF NOT EXISTS password_hash TEXT NULL;
 
+
+ALTER TABLE users
+ADD COLUMN IF NOT EXISTS email_verified_at TIMESTAMPTZ NULL;
+
 CREATE UNIQUE INDEX IF NOT EXISTS
     idx_users_email_auth_email_unique
 ON users (
@@ -208,6 +212,33 @@ CREATE TABLE IF NOT EXISTS password_reset_codes (
 
 
 -- ============================================================
+-- EMAIL VERIFICATION CODES
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS email_verification_codes (
+    id UUID PRIMARY KEY
+        DEFAULT gen_random_uuid(),
+
+    user_id UUID NOT NULL,
+
+    code_hash TEXT NOT NULL,
+
+    expires_at TIMESTAMPTZ NOT NULL,
+
+    used_at TIMESTAMPTZ NULL,
+
+    created_at TIMESTAMPTZ
+        NOT NULL
+        DEFAULT NOW(),
+
+    CONSTRAINT email_verification_codes_user_fk
+        FOREIGN KEY (user_id)
+        REFERENCES users(id)
+        ON DELETE CASCADE
+);
+
+
+-- ============================================================
 -- EXTERNAL INTEGRATION EVENT HISTORY
 -- ============================================================
 
@@ -347,6 +378,19 @@ CREATE INDEX IF NOT EXISTS
 ON integration_jobs (
     status,
     next_attempt_at
+);
+
+CREATE INDEX IF NOT EXISTS
+    idx_email_verification_codes_user
+ON email_verification_codes (
+    user_id,
+    created_at DESC
+);
+
+CREATE INDEX IF NOT EXISTS
+    idx_email_verification_codes_expiry
+ON email_verification_codes (
+    expires_at
 );
 
 COMMIT;

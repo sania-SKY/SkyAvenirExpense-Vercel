@@ -181,28 +181,61 @@ export default function LoginScreen() {
        * This screen is being replaced.
        */
       return;
-    } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : 'Unable to sign in.';
+    } } catch (error) {
+  if (
+    error instanceof
+      AuthRequestError &&
+    error.code ===
+      'EMAIL_NOT_VERIFIED'
+  ) {
+    const verificationEmail =
+      error.email ??
+      cleanEmail;
 
-      console.error(
-        'Work email sign-in failed:',
-        error,
-      );
+    setIsSigningIn(
+      false,
+    );
 
-      setLoginError(
-        message,
-      );
+    signingInRef.current =
+      false;
 
-      setIsSigningIn(
-        false,
-      );
+    router.push({
+      pathname:
+        '/(auth)/verify-email',
 
-      signingInRef.current =
-        false;
-    }
+      params: {
+        email:
+          verificationEmail,
+
+        notice:
+          'Please verify your work email before signing in.',
+      },
+    });
+
+    return;
+  }
+
+  const message =
+    error instanceof Error
+      ? error.message
+      : 'Unable to sign in.';
+
+  console.error(
+    'Work email sign-in failed:',
+    error,
+  );
+
+  setLoginError(
+    message,
+  );
+
+  setIsSigningIn(
+    false,
+  );
+
+  signingInRef.current =
+    false;
+}
   }
 
   function handleEmailChange(
@@ -381,7 +414,7 @@ export default function LoginScreen() {
                       onChangeText={
                         handleEmailChange
                       }
-                      placeholder="name@skyavenir.com"
+                      placeholder="name@company.com"
                       placeholderTextColor="#8DA3B5"
                       keyboardType="email-address"
                       autoCapitalize="none"

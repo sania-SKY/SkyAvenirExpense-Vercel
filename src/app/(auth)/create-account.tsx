@@ -29,14 +29,10 @@ import {
   registerWithWorkEmail,
 } from '../../../services/auth';
 
-import {
-  useAuth,
-} from '../../context/AuthContext';
+
 
 export default function CreateAccountScreen() {
-  const {
-    markAuthenticated,
-  } = useAuth();
+ 
 
   const [
     name,
@@ -161,24 +157,29 @@ export default function CreateAccountScreen() {
         true,
       );
 
-      const createdUser =
-        await registerWithWorkEmail({
-          name:
-            cleanName,
+    const result =
+  await registerWithWorkEmail({
+    name:
+      cleanName,
 
-          email:
-            cleanEmail,
+    email:
+      cleanEmail,
 
-          password,
-        });
+    password,
+  });
 
-      markAuthenticated(
-        createdUser,
-      );
+router.replace({
+  pathname:
+    '/(auth)/verify-email',
 
-      router.replace(
-        '/(tabs)/home',
-      );
+  params: {
+    email:
+      result.email,
+
+    notice:
+      result.message,
+  },
+});
     } catch (error) {
       setErrorMessage(
         error instanceof Error

@@ -33,46 +33,61 @@ export const env = {
   appSessionSecret:
     process.env.APP_SESSION_SECRET ?? '',
 
-    email: {
-  host:
-    process.env.SMTP_HOST ?? '',
+  email: {
+    host:
+      process.env.SMTP_HOST ?? '',
 
-  port:
-    Number(
-      process.env.SMTP_PORT ?? 465,
+    port:
+      Number(
+        process.env.SMTP_PORT ?? 465,
+      ),
+
+    secure:
+      process.env.SMTP_SECURE === 'true',
+
+    user:
+      process.env.SMTP_USER ?? '',
+
+    appPassword:
+      process.env.SMTP_APP_PASSWORD ?? '',
+
+    from:
+      process.env.SMTP_FROM ?? '',
+  },
+
+  passwordReset: {
+    codeExpiryMinutes:
+      Number(
+        process.env
+          .PASSWORD_RESET_CODE_EXPIRY_MINUTES ??
+          15,
+      ),
+  },
+
+  emailVerification: {
+    codeExpiryMinutes:
+      Number(
+        process.env
+          .EMAIL_VERIFICATION_CODE_EXPIRY_MINUTES ??
+          15,
+      ),
+  },
+
+  receiptStorageDirectory:
+    process.env.RECEIPT_STORAGE_DIRECTORY ??
+    (
+      process.env.RAILWAY_VOLUME_MOUNT_PATH
+        ? `${process.env.RAILWAY_VOLUME_MOUNT_PATH}/receipts`
+        : ''
     ),
-
-  secure:
-    process.env.SMTP_SECURE === 'true',
-
-  user:
-    process.env.SMTP_USER ?? '',
-
-  appPassword:
-    process.env.SMTP_APP_PASSWORD ?? '',
-
-  from:
-    process.env.SMTP_FROM ?? '',
-},
-passwordReset: {
-  codeExpiryMinutes:
-    Number(
-      process.env.PASSWORD_RESET_CODE_EXPIRY_MINUTES ?? 15,
-    ),
-},
-
-receiptStorageDirectory:
-  process.env.RECEIPT_STORAGE_DIRECTORY ??
-  (process.env.RAILWAY_VOLUME_MOUNT_PATH
-    ? `${process.env.RAILWAY_VOLUME_MOUNT_PATH}/receipts`
-    : ''),
 
   allowedWorkEmailDomains:
     parseAllowedWorkEmailDomains(),
 
   database: {
     host:
-      process.env.DB_HOST ?? 'localhost',
+      process.env.DB_HOST ??
+      'localhost',
 
     port:
       dbPort,
@@ -89,19 +104,23 @@ receiptStorageDirectory:
 
   companyApi: {
     enabled:
-      process.env.COMPANY_API_ENABLED === 'true',
+      process.env.COMPANY_API_ENABLED ===
+      'true',
 
     baseUrl:
-      process.env.COMPANY_API_BASE_URL ?? '',
+      process.env.COMPANY_API_BASE_URL ??
+      '',
 
     clientId:
-      process.env.COMPANY_API_CLIENT_ID ?? '',
+      process.env.COMPANY_API_CLIENT_ID ??
+      '',
 
     secret:
-      process.env.COMPANY_API_SECRET ?? '',
+      process.env.COMPANY_API_SECRET ??
+      '',
 
     webhookSecret:
-      process.env.COMPANY_WEBHOOK_SECRET ?? '',
+      process.env.COMPANY_WEBHOOK_SECRET ??
+      '',
   },
 };
-

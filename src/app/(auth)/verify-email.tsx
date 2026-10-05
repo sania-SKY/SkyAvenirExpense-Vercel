@@ -1,44 +1,75 @@
 import {
-  useState,
+    useState,
 } from 'react';
 
 import {
-  Ionicons,
+    Ionicons,
 } from '@expo/vector-icons';
 
 import {
-  router,
+    router,
+    useLocalSearchParams,
 } from 'expo-router';
 
 import {
-  StatusBar,
+    StatusBar,
 } from 'expo-status-bar';
 
 import {
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
+    KeyboardAvoidingView,
+    Platform,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    View,
 } from 'react-native';
 
 import {
-  requestPasswordReset,
+    resendEmailVerification,
+    verifyWorkEmail,
 } from '../../../services/auth';
 
-export default function ForgotPasswordScreen() {
+export default function VerifyEmailScreen() {
+  const params =
+    useLocalSearchParams<{
+      email?:
+        string;
+
+      notice?:
+        string;
+    }>();
+
+  const email =
+    typeof params.email ===
+      'string'
+      ? params.email
+          .trim()
+          .toLowerCase()
+      : '';
+
+  const initialNotice =
+    typeof params.notice ===
+      'string'
+      ? params.notice
+      : '';
+
   const [
-    email,
-    setEmail,
+    code,
+    setCode,
   ] =
     useState('');
 
   const [
-    isSubmitting,
-    setIsSubmitting,
+    isVerifying,
+    setIsVerifying,
+  ] =
+    useState(false);
+
+  const [
+    isResending,
+    setIsResending,
   ] =
     useState(false);
 
@@ -52,74 +83,105 @@ export default function ForgotPasswordScreen() {
     successMessage,
     setSuccessMessage,
   ] =
-    useState('');
+    useState(
+      initialNotice,
+    );
 
-  async function handleSendCode() {
+  async function handleVerify() {
     if (
-      isSubmitting
+      isVerifying
     ) {
       return;
     }
 
-    const cleanEmail =
-      email
-        .trim()
-        .toLowerCase();
+    const cleanCode =
+      code.trim();
 
     setErrorMessage('');
-    setSuccessMessage('');
 
-    if (!cleanEmail) {
+    if (!email) {
       setErrorMessage(
-        'Please enter your work email.',
+        'Your work email is unavailable. Please create your account again.',
       );
 
       return;
     }
 
     if (
-      !cleanEmail.includes(
-        '@',
+      !/^\d{6}$/.test(
+        cleanCode,
       )
     ) {
       setErrorMessage(
-        'Please enter a valid work email.',
+        'Please enter the 6-digit verification code.',
       );
 
       return;
     }
 
     try {
-      setIsSubmitting(
+      setIsVerifying(
         true,
       );
 
-      const message =
-        await requestPasswordReset(
-          cleanEmail,
-        );
-
-      setSuccessMessage(
-        message,
+      await verifyWorkEmail(
+        email,
+        cleanCode,
       );
 
-      router.push({
+      router.replace({
         pathname:
-          '/(auth)/reset-password',
+          '/(auth)/login',
 
         params: {
-          email:
-            cleanEmail,
+          verified:
+            'success',
         },
       });
     } catch (error) {
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : 'Unable to request a password reset.',
+          : 'Unable to verify your email.',
       );
     } finally {
-      setIsSubmitting(
+      setIsVerifying(
+        false,
+      );
+    }
+  }
+
+  async function handleResend() {
+    if (
+      isResending
+    ) {
+      return;
+    }
+
+    setErrorMessage('');
+    setSuccessMessage('');
+
+    try {
+      setIsResending(
+        true,
+      );
+
+      const message =
+        await resendEmailVerification(
+          email,
+        );
+
+      setSuccessMessage(
+        message,
+      );
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : 'Unable to resend the verification code.',
+      );
+    } finally {
+      setIsResending(
         false,
       );
     }
@@ -162,20 +224,17 @@ export default function ForgotPasswordScreen() {
           >
             <Pressable
               onPress={() =>
-                router.back()
+                router.replace(
+                  '/(auth)/login',
+                )
               }
               style={
                 styles.backButton
               }
-              hitSlop={
-                10
-              }
             >
               <Ionicons
                 name="chevron-back"
-                size={
-                  24
-                }
+                size={24}
                 color="#0A3558"
               />
             </Pressable>
@@ -190,7 +249,7 @@ export default function ForgotPasswordScreen() {
                   styles.headerTitle
                 }
               >
-                Forgot Password
+                Verify Email
               </Text>
 
               <Text
@@ -198,7 +257,7 @@ export default function ForgotPasswordScreen() {
                   styles.headerSubtitle
                 }
               >
-                Secure account recovery
+                Secure account verification
               </Text>
             </View>
 
@@ -220,10 +279,8 @@ export default function ForgotPasswordScreen() {
               }
             >
               <Ionicons
-                name="key-outline"
-                size={
-                  31
-                }
+                name="mail-open-outline"
+                size={31}
                 color="#0868AE"
               />
             </View>
@@ -233,7 +290,7 @@ export default function ForgotPasswordScreen() {
                 styles.title
               }
             >
-              Reset your password
+              Check your work email
             </Text>
 
             <Text
@@ -241,10 +298,31 @@ export default function ForgotPasswordScreen() {
                 styles.subtitle
               }
             >
-              Enter your Sky Avenir work email.
-              We&apos;ll send a 6-digit verification
-              code if an account exists.
+              Enter the 6-digit verification code
+              sent to your work email.
             </Text>
+
+            <View
+              style={
+                styles.emailCard
+              }
+            >
+              <Ionicons
+                name="mail-outline"
+                size={18}
+                color="#0868AE"
+              />
+
+              <Text
+                numberOfLines={1}
+                style={
+                  styles.emailText
+                }
+              >
+                {email ||
+                  'Work email unavailable'}
+              </Text>
+            </View>
 
             <View
               style={
@@ -256,7 +334,7 @@ export default function ForgotPasswordScreen() {
                   styles.label
                 }
               >
-                Work Email
+                Verification Code
               </Text>
 
               <View
@@ -265,38 +343,45 @@ export default function ForgotPasswordScreen() {
                 }
               >
                 <Ionicons
-                  name="mail-outline"
-                  size={
-                    19
-                  }
+                  name="keypad-outline"
+                  size={19}
                   color="#70879A"
                 />
 
                 <TextInput
                   value={
-                    email
+                    code
                   }
-                  onChangeText={
-                    setEmail
+                  onChangeText={(
+                    value,
+                  ) =>
+                    setCode(
+                      value
+                        .replace(
+                          /\D/g,
+                          '',
+                        )
+                        .slice(
+                          0,
+                          6,
+                        ),
+                    )
                   }
-                  placeholder="name@company.com"
+                  placeholder="6-digit code"
                   placeholderTextColor="#91A3B1"
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoCorrect={
-                    false
-                  }
-                  autoComplete="email"
+                  keyboardType="number-pad"
+                  maxLength={6}
                   editable={
-                    !isSubmitting
+                    !isVerifying
                   }
-                  returnKeyType="send"
+                  returnKeyType="done"
                   onSubmitEditing={
-                    handleSendCode
+                    handleVerify
                   }
-                  style={
-                    styles.input
-                  }
+                  style={[
+                    styles.input,
+                    styles.codeInput,
+                  ]}
                 />
               </View>
 
@@ -308,9 +393,7 @@ export default function ForgotPasswordScreen() {
                 >
                   <Ionicons
                     name="alert-circle-outline"
-                    size={
-                      17
-                    }
+                    size={17}
                     color="#B42318"
                   />
 
@@ -332,9 +415,7 @@ export default function ForgotPasswordScreen() {
                 >
                   <Ionicons
                     name="checkmark-circle-outline"
-                    size={
-                      17
-                    }
+                    size={17}
                     color="#16845B"
                   />
 
@@ -350,15 +431,15 @@ export default function ForgotPasswordScreen() {
 
               <Pressable
                 disabled={
-                  isSubmitting
+                  isVerifying
                 }
                 onPress={
-                  handleSendCode
+                  handleVerify
                 }
                 style={[
                   styles.primaryButton,
 
-                  isSubmitting &&
+                  isVerifying &&
                     styles.primaryButtonDisabled,
                 ]}
               >
@@ -367,71 +448,44 @@ export default function ForgotPasswordScreen() {
                     styles.primaryButtonText
                   }
                 >
-                  {isSubmitting
-                    ? 'Sending code...'
-                    : 'Send Reset Code'}
+                  {isVerifying
+                    ? 'Verifying...'
+                    : 'Verify Email'}
                 </Text>
-
-                {!isSubmitting && (
-                  <Ionicons
-                    name="arrow-forward"
-                    size={
-                      20
-                    }
-                    color="#FFFFFF"
-                  />
-                )}
               </Pressable>
             </View>
 
             <Pressable
-              onPress={() =>
-                router.replace(
-                  '/(auth)/login',
-                )
+              disabled={
+                isResending
+              }
+              onPress={
+                handleResend
               }
               style={
-                styles.signInLink
+                styles.resendButton
               }
             >
               <Text
                 style={
-                  styles.signInText
+                  styles.resendText
                 }
               >
-                Remembered your password?{' '}
-                <Text
-                  style={
-                    styles.signInStrong
-                  }
-                >
-                  Sign In
-                </Text>
+                {isResending
+                  ? 'Sending...'
+                  : "Didn't receive a code? "}
+
+                {!isResending && (
+                  <Text
+                    style={
+                      styles.resendStrong
+                    }
+                  >
+                    Send Again
+                  </Text>
+                )}
               </Text>
             </Pressable>
-
-            <View
-              style={
-                styles.securityCard
-              }
-            >
-              <Ionicons
-                name="shield-checkmark-outline"
-                size={
-                  21
-                }
-                color="#0868AE"
-              />
-
-              <Text
-                style={
-                  styles.securityText
-                }
-              >
-                For security, the app never confirms
-                whether a specific email is registered.
-              </Text>
-            </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -543,7 +597,7 @@ const styles =
         24,
 
       paddingTop:
-        34,
+        32,
 
       paddingBottom:
         34,
@@ -574,7 +628,7 @@ const styles =
 
     title: {
       marginTop:
-        18,
+        17,
 
       textAlign:
         'center',
@@ -591,9 +645,6 @@ const styles =
 
     subtitle: {
       marginTop:
-        9,
-
-      paddingHorizontal:
         8,
 
       textAlign:
@@ -609,9 +660,49 @@ const styles =
         '#71879A',
     },
 
+    emailCard: {
+      minHeight:
+        48,
+
+      marginTop:
+        20,
+
+      paddingHorizontal:
+        14,
+
+      flexDirection:
+        'row',
+
+      alignItems:
+        'center',
+
+      gap:
+        9,
+
+      borderRadius:
+        15,
+
+      backgroundColor:
+        '#E8F3FA',
+    },
+
+    emailText: {
+      flex:
+        1,
+
+      fontSize:
+        12.5,
+
+      fontWeight:
+        '600',
+
+      color:
+        '#41647D',
+    },
+
     formCard: {
       marginTop:
-        26,
+        16,
 
       padding:
         18,
@@ -689,21 +780,23 @@ const styles =
         '#173F60',
     },
 
+    codeInput: {
+      letterSpacing:
+        5,
+
+      fontWeight:
+        '700',
+    },
+
     errorBox: {
       marginTop:
-        14,
+        15,
 
-      paddingHorizontal:
-        11,
-
-      paddingVertical:
+      padding:
         10,
 
       flexDirection:
         'row',
-
-      alignItems:
-        'flex-start',
 
       gap:
         7,
@@ -722,28 +815,19 @@ const styles =
       fontSize:
         11,
 
-      lineHeight:
-        16,
-
       color:
         '#B42318',
     },
 
     successBox: {
       marginTop:
-        14,
+        15,
 
-      paddingHorizontal:
-        11,
-
-      paddingVertical:
+      padding:
         10,
 
       flexDirection:
         'row',
-
-      alignItems:
-        'flex-start',
 
       gap:
         7,
@@ -762,9 +846,6 @@ const styles =
       fontSize:
         11,
 
-      lineHeight:
-        16,
-
       color:
         '#16845B',
     },
@@ -779,17 +860,11 @@ const styles =
       borderRadius:
         17,
 
-      flexDirection:
-        'row',
-
       alignItems:
         'center',
 
       justifyContent:
         'center',
-
-      gap:
-        8,
 
       backgroundColor:
         '#0868AE',
@@ -811,7 +886,7 @@ const styles =
         '#FFFFFF',
     },
 
-    signInLink: {
+    resendButton: {
       marginTop:
         20,
 
@@ -819,7 +894,7 @@ const styles =
         'center',
     },
 
-    signInText: {
+    resendText: {
       fontSize:
         12.5,
 
@@ -827,48 +902,11 @@ const styles =
         '#627E91',
     },
 
-    signInStrong: {
+    resendStrong: {
       fontWeight:
         '700',
 
       color:
         '#0868AE',
-    },
-
-    securityCard: {
-      marginTop:
-        19,
-
-      padding:
-        14,
-
-      flexDirection:
-        'row',
-
-      alignItems:
-        'center',
-
-      gap:
-        10,
-
-      borderRadius:
-        17,
-
-      backgroundColor:
-        '#E8F3FA',
-    },
-
-    securityText: {
-      flex:
-        1,
-
-      fontSize:
-        10.5,
-
-      lineHeight:
-        15,
-
-      color:
-        '#57758A',
     },
   });

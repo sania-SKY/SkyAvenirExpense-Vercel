@@ -134,7 +134,7 @@ export default function ExpensesScreen() {
   ] = useState<
     string | null
   >(null);
-
+  
   /*
    * ------------------------------------------------
    * LOAD REAL EXPENSES

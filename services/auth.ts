@@ -44,9 +44,88 @@ type AuthResponse = {
       string;
   };
 
+  code?:
+    string;
+
+  email?:
+    string;
+
   message?:
     string;
 };
+
+type RegisterResponse = {
+  authenticated?:
+    boolean;
+
+  verificationRequired?:
+    boolean;
+
+  email?:
+    string;
+
+  deliveryFailed?:
+    boolean;
+
+  message?:
+    string;
+};
+
+export type RegisterResult = {
+  email:
+    string;
+
+  verificationRequired:
+    true;
+
+  deliveryFailed:
+    boolean;
+
+  message:
+    string;
+};
+
+type VerificationResponse = {
+  verified?:
+    boolean;
+
+  message?:
+    string;
+};
+
+export class AuthRequestError extends Error {
+  status:
+    number;
+
+  code?:
+    string;
+
+  email?:
+    string;
+
+  constructor(
+    message: string,
+    status: number,
+    code?: string,
+    email?: string,
+  ) {
+    super(
+      message,
+    );
+
+    this.name =
+      'AuthRequestError';
+
+    this.status =
+      status;
+
+    this.code =
+      code;
+
+    this.email =
+      email;
+  }
+}
 
 type MessageResponse = {
   message?:
@@ -762,29 +841,28 @@ export async function signInWithWorkEmail(
     await readAuthResponse(
       response,
     );
+if (!response.ok) {
+  throw new AuthRequestError(
+    data.message ??
+      `Unable to sign in (${response.status}).`,
 
-  if (!response.ok) {
-    throw new Error(
-      data.message ??
-        `Unable to sign in (${response.status}).`,
-    );
-  }
+    response.status,
+
+    data.code,
+
+    data.email,
+  );
+}
 
   return await setAuthenticatedSession(
     data,
   );
 }
 
-/*
- * ------------------------------------------------
- * CREATE ACCOUNT
- * ------------------------------------------------
- */
-
 export async function registerWithWorkEmail(
   input:
     RegisterInput,
-): Promise<AuthUser> {
+): Promise<RegisterResult> {
   const apiBaseUrl =
     requireApiUrl();
 
@@ -859,10 +937,17 @@ export async function registerWithWorkEmail(
       },
     );
 
-  const data =
-    await readAuthResponse(
-      response,
+  let data:
+    RegisterResponse;
+
+  try {
+    data =
+      await response.json();
+  } catch {
+    throw new Error(
+      'The server returned an invalid registration response.',
     );
+  }
 
   if (!response.ok) {
     throw new Error(
@@ -871,11 +956,172 @@ export async function registerWithWorkEmail(
     );
   }
 
-  return await setAuthenticatedSession(
-    data,
+  const verifiedEmail =
+    data.email
+      ?.trim()
+      .toLowerCase();
+
+  if (
+    !data.verificationRequired ||
+    !verifiedEmail
+  ) {
+    throw new Error(
+      'The server returned an invalid registration response.',
+    );
+  }
+
+  return {
+    email:
+      verifiedEmail,
+
+    verificationRequired:
+      true,
+
+    deliveryFailed:
+      Boolean(
+        data.deliveryFailed,
+      ),
+
+    message:
+      data.message ??
+      'Check your work email for the verification code.',
+  };
+}
+
+export async function verifyWorkEmail(
+  emailInput:
+    string,
+
+  codeInput:
+    string,
+): Promise<string> {
+  const apiBaseUrl =
+    requireApiUrl();
+
+  const email =
+    emailInput
+      .trim()
+      .toLowerCase();
+
+  const code =
+    codeInput
+      .trim();
+
+  if (!email) {
+    throw new Error(
+      'Work email is required.',
+    );
+  }
+
+  if (
+    !/^\d{6}$/.test(
+      code,
+    )
+  ) {
+    throw new Error(
+      'Please enter the 6-digit verification code.',
+    );
+  }
+
+  const response =
+    await fetchWithTimeout(
+      `${apiBaseUrl}/api/auth/verify-email`,
+      {
+        method:
+          'POST',
+
+        headers: {
+          'Content-Type':
+            'application/json',
+        },
+
+        body:
+          JSON.stringify({
+            email,
+            code,
+          }),
+      },
+    );
+
+  let data:
+    VerificationResponse;
+
+  try {
+    data =
+      await response.json();
+  } catch {
+    throw new Error(
+      'The server returned an invalid verification response.',
+    );
+  }
+
+  if (!response.ok) {
+    throw new Error(
+      data.message ??
+      'Unable to verify your email.',
+    );
+  }
+
+  return (
+    data.message ??
+    'Email verified successfully.'
   );
 }
 
+export async function resendEmailVerification(
+  emailInput:
+    string,
+): Promise<string> {
+  const apiBaseUrl =
+    requireApiUrl();
+
+  const email =
+    emailInput
+      .trim()
+      .toLowerCase();
+
+  if (!email) {
+    throw new Error(
+      'Work email is required.',
+    );
+  }
+
+  const response =
+    await fetchWithTimeout(
+      `${apiBaseUrl}/api/auth/resend-verification`,
+      {
+        method:
+          'POST',
+
+        headers: {
+          'Content-Type':
+            'application/json',
+        },
+
+        body:
+          JSON.stringify({
+            email,
+          }),
+      },
+    );
+
+  const data =
+    await readMessageResponse(
+      response,
+    );
+
+  if (!response.ok) {
+    throw new Error(
+      data.message ??
+      'Unable to resend the verification code.',
+    );
+  }
+
+  return (
+    data.message ??
+    'A new verification code has been sent.'
+  );
+}
 /*
  * ------------------------------------------------
  * REQUEST PASSWORD RESET

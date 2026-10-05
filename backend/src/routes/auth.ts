@@ -32,6 +32,7 @@ import type {
 } from '../middleware/auth.js';
 
 import {
+  sendEmailVerificationCode,
   sendPasswordResetCode,
 } from '../services/emailService.js';
 
@@ -48,6 +49,12 @@ const RESET_CODE_BCRYPT_ROUNDS =
   10;
 
 const RESET_REQUEST_COOLDOWN_SECONDS =
+  60;
+
+const EMAIL_VERIFICATION_CODE_BCRYPT_ROUNDS =
+  10;
+
+const EMAIL_VERIFICATION_REQUEST_COOLDOWN_SECONDS =
   60;
 
 /*
@@ -180,6 +187,26 @@ const genericForgotPasswordResponse = {
   message:
     'If an account exists for that email, a password reset code has been sent.',
 };
+
+function getEmailVerificationExpiryMinutes():
+  number {
+  const configured =
+    env.emailVerification
+      .codeExpiryMinutes;
+
+  if (
+    !Number.isFinite(
+      configured,
+    ) ||
+    configured < 1
+  ) {
+    return 15;
+  }
+
+  return Math.floor(
+    configured,
+  );
+}
 
 /*
  * ------------------------------------------------
@@ -511,45 +538,103 @@ router.post(
       const row =
         created.rows[0];
 
-      const authenticatedUser:
-        AuthenticatedUser = {
-          id:
-            row.id,
+      const verificationCode =
+  randomInt(
+    100000,
+    1000000,
+  ).toString();
 
-          provider:
-            'email',
+const verificationCodeHash =
+  await hash(
+    verificationCode,
+    EMAIL_VERIFICATION_CODE_BCRYPT_ROUNDS,
+  );
 
-          providerUserId:
-            row.provider_user_id,
+await client.query(
+  `
+    INSERT INTO email_verification_codes (
+      user_id,
+      code_hash,
+      expires_at
+    )
+    VALUES (
+      $1,
+      $2,
+      NOW() +
+        ($3 * INTERVAL '1 minute')
+    )
+  `,
+  [
+    row.id,
+    verificationCodeHash,
+    getEmailVerificationExpiryMinutes(),
+  ],
+);
 
-          name:
-            row.name,
+await client.query(
+  'COMMIT',
+);
 
-          email:
-            row.email
-              .trim()
-              .toLowerCase(),
-        };
+let deliveryFailed =
+  false;
 
-      const accessToken =
-        await createSessionToken(
-          row.id,
-          authenticatedUser,
-        );
+try {
+  await sendEmailVerificationCode(
+    row.email,
+    verificationCode,
+  );
+} catch (emailError) {
+  deliveryFailed =
+    true;
 
-      await client.query(
-        'COMMIT',
-      );
+  console.error(
+    'Email verification delivery failed:',
+    emailError,
+  );
 
-      res
-        .status(201)
-        .json(
-          createAuthenticatedResponse(
-            row.id,
-            authenticatedUser,
-            accessToken,
-          ),
-        );
+  /*
+   * Do not leave a usable code that the
+   * employee never received.
+   */
+  try {
+    await pool.query(
+      `
+        UPDATE email_verification_codes
+        SET used_at = NOW()
+        WHERE user_id = $1
+          AND used_at IS NULL
+      `,
+      [
+        row.id,
+      ],
+    );
+  } catch (cleanupError) {
+    console.error(
+      'Unable to invalidate undelivered verification code:',
+      cleanupError,
+    );
+  }
+}
+
+res
+  .status(201)
+  .json({
+    authenticated:
+      false,
+
+    verificationRequired:
+      true,
+
+    email:
+      row.email,
+
+    deliveryFailed,
+
+    message:
+      deliveryFailed
+        ? 'Your account was created, but the verification email could not be delivered. Please request a new verification code.'
+        : 'Account created. Check your work email for the 6-digit verification code.',
+  });
     } catch (error) {
       try {
         await client.query(
@@ -602,6 +687,522 @@ router.post(
         });
     } finally {
       client.release();
+    }
+  },
+);
+
+router.post(
+  '/verify-email',
+
+  async (
+    req,
+    res,
+  ) => {
+    const email =
+      normalizeEmail(
+        req.body?.email,
+      );
+
+    const code =
+      typeof req.body?.code ===
+        'string'
+        ? req.body.code.trim()
+        : '';
+
+    if (
+      !email ||
+      !/^\d{6}$/.test(
+        code,
+      )
+    ) {
+      res
+        .status(400)
+        .json({
+          verified:
+            false,
+
+          message:
+            'Please enter the valid 6-digit verification code.',
+        });
+
+      return;
+    }
+
+    if (
+      !isAllowedWorkEmail(
+        email,
+      )
+    ) {
+      res
+        .status(403)
+        .json({
+          verified:
+            false,
+
+          message:
+            getAllowedEmailMessage(),
+        });
+
+      return;
+    }
+
+    const client =
+      await pool.connect();
+
+    try {
+      await client.query(
+        'BEGIN',
+      );
+
+      const userResult =
+        await client.query<{
+          id: string;
+          email_verified_at:
+            Date | null;
+        }>(
+          `
+            SELECT
+              id,
+              email_verified_at
+            FROM users
+            WHERE
+              auth_provider = 'email'
+              AND LOWER(email) = LOWER($1)
+            LIMIT 1
+            FOR UPDATE
+          `,
+          [
+            email,
+          ],
+        );
+
+      const user =
+        userResult.rows[0];
+
+      if (!user) {
+        await client.query(
+          'ROLLBACK',
+        );
+
+        res
+          .status(400)
+          .json({
+            verified:
+              false,
+
+            message:
+              'Invalid or expired verification code.',
+          });
+
+        return;
+      }
+
+      if (
+        user.email_verified_at
+      ) {
+        await client.query(
+          'COMMIT',
+        );
+
+        res.json({
+          verified:
+            true,
+
+          message:
+            'Your email is already verified. You can sign in.',
+        });
+
+        return;
+      }
+
+      const codeResult =
+        await client.query<{
+          id: string;
+          code_hash: string;
+        }>(
+          `
+            SELECT
+              id,
+              code_hash
+            FROM email_verification_codes
+            WHERE
+              user_id = $1
+              AND used_at IS NULL
+              AND expires_at > NOW()
+            ORDER BY
+              created_at DESC
+            LIMIT 1
+            FOR UPDATE
+          `,
+          [
+            user.id,
+          ],
+        );
+
+      const verificationRecord =
+        codeResult.rows[0];
+
+      if (
+        !verificationRecord
+      ) {
+        await client.query(
+          'ROLLBACK',
+        );
+
+        res
+          .status(400)
+          .json({
+            verified:
+              false,
+
+            message:
+              'Invalid or expired verification code.',
+          });
+
+        return;
+      }
+
+      const validCode =
+        await compare(
+          code,
+          verificationRecord.code_hash,
+        );
+
+      if (!validCode) {
+        await client.query(
+          'ROLLBACK',
+        );
+
+        res
+          .status(400)
+          .json({
+            verified:
+              false,
+
+            message:
+              'Invalid or expired verification code.',
+          });
+
+        return;
+      }
+
+      await client.query(
+        `
+          UPDATE users
+          SET
+            email_verified_at = NOW(),
+            updated_at = NOW()
+          WHERE id = $1
+        `,
+        [
+          user.id,
+        ],
+      );
+
+      await client.query(
+        `
+          UPDATE email_verification_codes
+          SET used_at = NOW()
+          WHERE user_id = $1
+            AND used_at IS NULL
+        `,
+        [
+          user.id,
+        ],
+      );
+
+      await client.query(
+        'COMMIT',
+      );
+
+      res.json({
+        verified:
+          true,
+
+        message:
+          'Email verified successfully. You can now sign in.',
+      });
+    } catch (error) {
+      try {
+        await client.query(
+          'ROLLBACK',
+        );
+      } catch {
+        // Keep original error.
+      }
+
+      console.error(
+        'Email verification failed:',
+        error,
+      );
+
+      res
+        .status(500)
+        .json({
+          verified:
+            false,
+
+          message:
+            'Unable to verify your email at this time.',
+        });
+    } finally {
+      client.release();
+    }
+  },
+);
+
+
+router.post(
+  '/resend-verification',
+
+  async (
+    req,
+    res,
+  ) => {
+    try {
+      const email =
+        normalizeEmail(
+          req.body?.email,
+        );
+
+      const genericResponse = {
+        message:
+          'If verification is still required, a new code has been sent.',
+      };
+
+      if (!email) {
+        res
+          .status(400)
+          .json({
+            message:
+              'Please enter your work email.',
+          });
+
+        return;
+      }
+
+      if (
+        !isAllowedWorkEmail(
+          email,
+        )
+      ) {
+        res
+          .status(403)
+          .json({
+            message:
+              getAllowedEmailMessage(),
+          });
+
+        return;
+      }
+
+      const result =
+        await pool.query<{
+          id: string;
+          email: string;
+          email_verified_at:
+            Date | null;
+        }>(
+          `
+            SELECT
+              id,
+              email,
+              email_verified_at
+            FROM users
+            WHERE
+              auth_provider = 'email'
+              AND LOWER(email) = LOWER($1)
+            LIMIT 1
+          `,
+          [
+            email,
+          ],
+        );
+
+      const user =
+        result.rows[0];
+
+      if (
+        !user ||
+        user.email_verified_at
+      ) {
+        res.json(
+          genericResponse,
+        );
+
+        return;
+      }
+
+      const recentRequest =
+        await pool.query<{
+          id: string;
+        }>(
+          `
+            SELECT id
+            FROM email_verification_codes
+            WHERE
+              user_id = $1
+              AND created_at >
+                NOW() -
+                ($2 * INTERVAL '1 second')
+            ORDER BY
+              created_at DESC
+            LIMIT 1
+          `,
+          [
+            user.id,
+            EMAIL_VERIFICATION_REQUEST_COOLDOWN_SECONDS,
+          ],
+        );
+
+      if (
+        recentRequest.rowCount
+      ) {
+        res.json(
+          genericResponse,
+        );
+
+        return;
+      }
+
+      const verificationCode =
+        randomInt(
+          100000,
+          1000000,
+        ).toString();
+
+      const codeHash =
+        await hash(
+          verificationCode,
+          EMAIL_VERIFICATION_CODE_BCRYPT_ROUNDS,
+        );
+
+      const client =
+        await pool.connect();
+
+      let verificationRecordId:
+        string | null =
+        null;
+
+      try {
+        await client.query(
+          'BEGIN',
+        );
+
+        await client.query(
+          `
+            UPDATE email_verification_codes
+            SET used_at = NOW()
+            WHERE
+              user_id = $1
+              AND used_at IS NULL
+          `,
+          [
+            user.id,
+          ],
+        );
+
+        const inserted =
+          await client.query<{
+            id: string;
+          }>(
+            `
+              INSERT INTO email_verification_codes (
+                user_id,
+                code_hash,
+                expires_at
+              )
+              VALUES (
+                $1,
+                $2,
+                NOW() +
+                  ($3 * INTERVAL '1 minute')
+              )
+              RETURNING id
+            `,
+            [
+              user.id,
+              codeHash,
+              getEmailVerificationExpiryMinutes(),
+            ],
+          );
+
+        verificationRecordId =
+          inserted.rows[0].id;
+
+        await client.query(
+          'COMMIT',
+        );
+      } catch (error) {
+        await client.query(
+          'ROLLBACK',
+        );
+
+        throw error;
+      } finally {
+        client.release();
+      }
+
+      try {
+        await sendEmailVerificationCode(
+          user.email,
+          verificationCode,
+        );
+      } catch (error) {
+        console.error(
+          'Verification email delivery failed:',
+          error,
+        );
+
+        if (
+          verificationRecordId
+        ) {
+          try {
+            await pool.query(
+              `
+                UPDATE email_verification_codes
+                SET used_at = NOW()
+                WHERE id = $1
+              `,
+              [
+                verificationRecordId,
+              ],
+            );
+          } catch (
+            cleanupError
+          ) {
+            console.error(
+              'Unable to invalidate undelivered verification code:',
+              cleanupError,
+            );
+          }
+        }
+
+        res
+          .status(503)
+          .json({
+            message:
+              'Verification email is temporarily unavailable. Please try again shortly.',
+          });
+
+        return;
+      }
+
+      res.json(
+        genericResponse,
+      );
+    } catch (error) {
+      console.error(
+        'Resend verification error:',
+        error,
+      );
+
+      res
+        .status(500)
+        .json({
+          message:
+            'Unable to process the verification request at this time.',
+        });
     }
   },
 );
@@ -666,35 +1267,38 @@ router.post(
         return;
       }
 
-      const result =
-        await pool.query<{
-          id:
-            string;
+     const result =
+  await pool.query<{
+    id: string;
 
-          provider_user_id:
-            string;
+    provider_user_id:
+      string;
 
-          email:
-            string;
+    email:
+      string;
 
-          name:
-            string;
+    name:
+      string;
 
-          password_hash:
-            string | null;
-        }>(
+    password_hash:
+      string | null;
+
+    email_verified_at:
+      Date | null;
+  }>(
           `
-            SELECT
-              id,
-              provider_user_id,
-              email,
-              name,
-              password_hash
-            FROM users
-            WHERE
-              auth_provider = 'email'
-              AND LOWER(email) = LOWER($1)
-            LIMIT 1
+          SELECT
+  id,
+  provider_user_id,
+  email,
+  name,
+  password_hash,
+  email_verified_at
+FROM users
+WHERE
+  auth_provider = 'email'
+  AND LOWER(email) = LOWER($1)
+LIMIT 1
           `,
           [
             email,
@@ -748,6 +1352,28 @@ router.post(
 
         return;
       }
+
+      if (
+  !row.email_verified_at
+) {
+  res
+    .status(403)
+    .json({
+      authenticated:
+        false,
+
+      code:
+        'EMAIL_NOT_VERIFIED',
+
+      email:
+        row.email,
+
+      message:
+        'Please verify your work email before signing in.',
+    });
+
+  return;
+}
 
       const authenticatedUser:
         AuthenticatedUser = {
